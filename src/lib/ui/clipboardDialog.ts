@@ -399,6 +399,13 @@ export class ClipboardDialog extends St.Widget {
 	}
 
 	override destroy() {
+		// Clean up modal grab and unredirect if not already closed
+		if (this._grab) {
+			Main.popModal(this._grab);
+			this._grab = null;
+			global.compositor.enable_unredirect();
+		}
+
 		(Main.inputMethod as Clutter.InputMethod).disconnectObject(this);
 		this._ibusManager.disconnectObject(this);
 		this.ext.settings.disconnectObject(this);
@@ -555,6 +562,31 @@ export class ClipboardDialog extends St.Widget {
 	}
 
 	public addEntry(entry: ClipboardEntry): void {
+		const item = this.createItemForEntry(entry);
+		if (!item) return;
+
+		this._scrollView.addItem(item);
+	}
+
+	/**
+	 * Add multiple entries without updating visibility after each one.
+	 * Call finishBatchLoadEntries() after all entries are added to update visibility once.
+	 */
+	public addEntryBatch(entry: ClipboardEntry): void {
+		const item = this.createItemForEntry(entry);
+		if (!item) return;
+
+		this._scrollView.addItemBatch(item);
+	}
+
+	/**
+	 * Finish batch loading and update visibility once for all queued items.
+	 */
+	public finishBatchLoadEntries(): void {
+		this._scrollView.finishBatch();
+	}
+
+	private createItemForEntry(entry: ClipboardEntry) {
 		let item;
 		try {
 			item = (() => {
@@ -582,11 +614,11 @@ export class ClipboardDialog extends St.Widget {
 
 			if (!item) {
 				this.ext.logger.error('Unknown item type', entry);
-				return;
+				return null;
 			}
 		} catch (e) {
 			this.ext.logger.error(e);
-			return;
+			return null;
 		}
 
 		// Connect edit
@@ -643,7 +675,7 @@ export class ClipboardDialog extends St.Widget {
 			this,
 		);
 
-		this._scrollView.addItem(item);
+		return item;
 	}
 
 	public dialogShortcut() {
