@@ -163,14 +163,12 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			'delete',
 			() => this.removeItem(item),
 
-			// Move item when pinned changes (if pinned-on-top is enabled)
+			// Pinning changes both the sort position and whether exclude-pinned hides the item, so the
+			// search has to be re-applied either way.
 			'notify::pinned',
 			() => {
-				if (this._ext.settings.get_boolean('pinned-on-top')) {
-					this.insertOrMoveItem(item, false);
-				} else {
-					this.updateSearch(item);
-				}
+				if (this._ext.settings.get_boolean('pinned-on-top')) this.insertOrMoveItem(item);
+				else this.updateSearch(item);
 			},
 
 			// Update search only when properties used by search can change.
@@ -186,6 +184,20 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			() => this.updateSearch(item),
 			item,
 		);
+	}
+
+	/**
+	 * Re-orders every item, for when the sort criteria themselves change.
+	 *
+	 * Toggling pinned-on-top leaves the existing children in datetime order, which is not partitioned
+	 * by pinned state, so incremental insertion alone would never produce the right order.
+	 */
+	public resortItems(): void {
+		const items = this.get_children().filter((c) => c instanceof ClipboardItem);
+		for (const item of items) this.insertOrMoveItem(item, false, false);
+
+		if (this._lastQuery) this.search(this._lastQuery);
+		else this.updateVisible();
 	}
 
 	private findItem(id: number): ClipboardItem | null {

@@ -394,6 +394,7 @@ export class ClipboardDialog extends St.Widget {
 			'changed::clipboard-margin-bottom', this.updateMargins.bind(this),
 			'changed::clipboard-margin-left', this.updateMargins.bind(this),
 			'changed::clipboard-margin-right', this.updateMargins.bind(this),
+			'changed::pinned-on-top', () => this._scrollView.resortItems(),
 			this);
 
 		this.updatePosition();

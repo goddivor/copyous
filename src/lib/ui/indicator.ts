@@ -172,8 +172,12 @@ export class ClipboardIndicator extends PanelMenu.Button {
 
 		this.visible = indicatorDisplay !== IndicatorDisplay.Hidden;
 		this._icon.visible = showIconIndicator;
-		if (this._previewWidget) this._previewWidget.visible = showContentIndicator && !indicatorText;
 		this.incognito = this.ext.settings.get_boolean('incognito');
+
+		// A custom label replaces the clipboard preview, and has to appear straight away rather than
+		// waiting for the first copy of the session to build a preview widget.
+		if (indicatorText && showContentIndicator) this.showText(indicatorText);
+		if (this._previewWidget) this._previewWidget.visible = showContentIndicator;
 	}
 
 	toggleIncognito() {
