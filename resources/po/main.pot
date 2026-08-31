@@ -8,11 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-<<<<<<< HEAD
-"POT-Creation-Date: 2026-08-31 05:12+0000\n"
-=======
-"POT-Creation-Date: 2026-08-31 05:09+0000\n"
->>>>>>> 57ba83b (chore: update translation templates)
+"POT-Creation-Date: 2026-08-31 05:14+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -71,56 +67,60 @@ msgstr ""
 msgid "QR Code"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:144 src/lib/database/entryTracker.ts:164
+#: src/lib/database/entryTracker.ts:154 src/lib/database/entryTracker.ts:174
 msgid "Failed to load Gda"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:145 src/lib/database/entryTracker.ts:164
-#: src/lib/database/entryTracker.ts:180
+#: src/lib/database/entryTracker.ts:155 src/lib/database/entryTracker.ts:174
+#: src/lib/database/entryTracker.ts:190
 msgid "Clipboard history will be disabled"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:146
+#: src/lib/database/entryTracker.ts:156
 msgid "Disable Warning"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:180
+#: src/lib/database/entryTracker.ts:190
 msgid "Failed to load JSON"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:63 src/lib/misc/notifications.ts:114
+#: src/lib/misc/notifications.ts:63 src/lib/misc/notifications.ts:128
 msgid "Copied Text"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:98 src/lib/misc/notifications.ts:123
+#: src/lib/misc/notifications.ts:98 src/lib/misc/notifications.ts:137
 msgid "Copied Image"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:99 src/lib/misc/notifications.ts:129
+#: src/lib/misc/notifications.ts:99 src/lib/misc/notifications.ts:143
 #, javascript-format
 msgid "Size: %d×%d px"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:118
+#: src/lib/misc/notifications.ts:119
+msgid "Selected"
+msgstr ""
+
+#: src/lib/misc/notifications.ts:132
 msgid "Copied Code"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:142
+#: src/lib/misc/notifications.ts:156
 #, javascript-format
 msgid "Copied %d File"
 msgid_plural "Copied %d Files"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/lib/misc/notifications.ts:148
+#: src/lib/misc/notifications.ts:162
 msgid "Copied Link"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:152
+#: src/lib/misc/notifications.ts:166
 msgid "Copied Character"
 msgstr ""
 
-#: src/lib/misc/notifications.ts:156
+#: src/lib/misc/notifications.ts:170
 msgid "Copied Color"
 msgstr ""
 
@@ -1585,15 +1585,32 @@ msgstr ""
 msgid "Toggle Incognito Mode"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/dialogShortcuts.ts:27
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:26
+msgid "Select Next Item"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:29
+msgid "Select Previous Item"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:33
+msgid "Notify on Selection"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:34
+msgid ""
+"Show a notification with the item picked while cycling through the history"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:39
 msgid "Open Clipboard Dialog Behavior"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/dialogShortcuts.ts:28
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:40
 msgid "Open / Select Next Item"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/dialogShortcuts.ts:28
+#: src/lib/preferences/shortcuts/dialogShortcuts.ts:40
 msgid "Toggle Dialog"
 msgstr ""
 
@@ -1743,13 +1760,10 @@ msgstr ""
 msgid "Disable Shortcut"
 msgstr ""
 
-<<<<<<< HEAD
 #: src/lib/ui/components/clipboardItemMenu.ts:116
 msgid "Paste with Formatting"
 msgstr ""
 
-=======
->>>>>>> 57ba83b (chore: update translation templates)
 #: src/lib/ui/components/contentInfo.ts:34
 #, javascript-format
 msgid "%dh"

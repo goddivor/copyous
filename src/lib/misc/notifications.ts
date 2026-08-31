@@ -106,6 +106,20 @@ export class NotificationManager extends GObject.Object {
 	public notification(entry: ClipboardEntry) {
 		if (!this.ext.settings.get_boolean('send-notification')) return;
 
+		this.entryNotification(entry);
+	}
+
+	/**
+	 * Shows the entry picked while cycling through the history in place.
+	 *
+	 * This is the only feedback the user gets when cycling without opening the dialog, so it is
+	 * governed by its own setting rather than by send-notification.
+	 */
+	public selectionNotification(entry: ClipboardEntry) {
+		this.entryNotification(entry, _('Selected'));
+	}
+
+	private entryNotification(entry: ClipboardEntry, overrideTitle?: string) {
 		let title: string;
 		let body: string | null = normalizeIndentation(trim(entry.content), 4);
 		let gicon: Gio.Icon | St.ImageContent;
@@ -159,7 +173,13 @@ export class NotificationManager extends GObject.Object {
 		}
 
 		const source = this.source;
-		const notification = new MessageTray.Notification({ source, title, body, gicon, isTransient: true });
+		const notification = new MessageTray.Notification({
+			source,
+			title: overrideTitle ?? title,
+			body,
+			gicon,
+			isTransient: true,
+		});
 		source.addNotification(notification);
 	}
 }
