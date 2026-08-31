@@ -402,7 +402,11 @@ export class ClipboardManager extends GObject.Object {
 		}
 
 		// Image
-		const imageMimeType = MimeTypes.Image.find((value) => mimeTypes.includes(value));
+		// Reading the bytes is what makes an image copy expensive, so the check happens before it and
+		// falls through to the other targets, which keeps the plain text of a mixed selection.
+		const imageMimeType = this.ext.settings.get_boolean('ignore-images')
+			? undefined
+			: MimeTypes.Image.find((value) => mimeTypes.includes(value));
 		if (imageMimeType) {
 			const bytes = await getBytes(imageMimeType);
 			if (bytes.length > 0) {

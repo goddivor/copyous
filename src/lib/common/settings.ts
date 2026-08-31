@@ -12,6 +12,7 @@ export const Settings = {
 	ClipboardHistory: 'clipboard-history',
 	HistoryLength: 'history-length',
 	HistoryTime: 'history-time',
+	IgnoreImages: 'ignore-images',
 
 	RememberSearch: 'remember-search',
 	ExcludePinned: 'exclude-pinned',
@@ -144,6 +145,7 @@ export const SettingsTypes = {
 	[Settings.ClipboardHistory]: 'enum',
 	[Settings.HistoryLength]: 'int',
 	[Settings.HistoryTime]: 'int',
+	[Settings.IgnoreImages]: 'boolean',
 
 	[Settings.RememberSearch]: 'boolean',
 	[Settings.ExcludePinned]: 'boolean',

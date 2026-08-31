@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 04:45+0000\n"
+"POT-Creation-Date: 2026-08-31 04:51+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1508,6 +1508,14 @@ msgid ""
 "disable the time limit"
 msgstr ""
 
+#: src/lib/preferences/general/historySettings.ts:159
+msgid "Ignore Images"
+msgstr ""
+
+#: src/lib/preferences/general/historySettings.ts:160
+msgid "Do not store copied images in the clipboard history"
+msgstr ""
+
 #: src/lib/preferences/general/locationsGroup.ts:13
 msgid "Locations"
 msgstr ""
@@ -1786,7 +1794,7 @@ msgstr ""
 msgid "Settings"
 msgstr ""
 
-#: src/lib/ui/indicator.ts:199
+#: src/lib/ui/indicator.ts:204
 #, javascript-format
 msgid "%d File"
 msgid_plural "%d Files"
@@ -1819,7 +1827,7 @@ msgstr ""
 msgid "No Description"
 msgstr ""
 
-#: src/lib/ui/items/statusItem.ts:70 src/lib/ui/items/statusItem.ts:104
+#: src/lib/ui/items/statusItem.ts:69 src/lib/ui/items/statusItem.ts:104
 msgid "Clipboard is Empty"
 msgstr ""
 

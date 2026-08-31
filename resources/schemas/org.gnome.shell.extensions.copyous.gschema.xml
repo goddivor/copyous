@@ -143,6 +143,10 @@
 			<range min="0" max="1440" />
 			<summary>Number of minutes to keep unpinned and untagged items in the clipboard history. Set to 0 to disable the time limit</summary>
 		</key>
+		<key name="ignore-images" type="b">
+			<default>false</default>
+			<summary>Do not store copied images in the clipboard history</summary>
+		</key>
 
 		<!-- Behavior -->
 		<key name="remember-search" type="b">
