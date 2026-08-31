@@ -158,7 +158,11 @@ class ClipboardGridLayout extends Clutter.LayoutManager {
 		const width = Math.max(columns * cellWidth + (columns - 1) * this._spacing, 0);
 		if (ClipboardGridLayout.isStatusOnly(children)) {
 			const [minWidth, natWidth] = children[0]!.get_preferred_width(-1);
-			return [Math.max(width, minWidth), Math.max(width, natWidth)];
+			const min = Math.max(width, minWidth);
+
+			// Clutter aborts the shell when the natural size is below the minimum, so the natural
+			// size is raised to the minimum rather than taken on its own.
+			return [min, Math.max(min, natWidth)];
 		}
 
 		return [width, width];
@@ -174,7 +178,10 @@ class ClipboardGridLayout extends Clutter.LayoutManager {
 		const height = Math.max(rows * cellHeight + (rows - 1) * this._spacing, 0);
 		if (ClipboardGridLayout.isStatusOnly(children)) {
 			const [minHeight, natHeight] = children[0]!.get_preferred_height(-1);
-			return [Math.max(height, minHeight), Math.max(height, natHeight)];
+			const min = Math.max(height, minHeight);
+
+			// Same invariant as above: the natural size can never sit below the minimum.
+			return [min, Math.max(min, natHeight)];
 		}
 
 		return [height, height];
