@@ -70,6 +70,14 @@
 		<value nick="disabled" value="2"/>
 	</enum>
 
+	<enum id="org.gnome.shell.extensions.copyous.ScrollModifier">
+		<value nick="none" value="0"/>
+		<value nick="ctrl" value="1"/>
+		<value nick="alt" value="2"/>
+		<value nick="shift" value="3"/>
+		<value nick="super" value="4"/>
+	</enum>
+
 	<enum id="org.gnome.shell.extensions.copyous.IndicatorDisplay">
 		<value nick="hidden" value="0"/>
 		<value nick="icon-only" value="1"/>
@@ -407,7 +415,7 @@
 
 		<key name="swap-scroll-shortcut" type="b">
 			<default>false</default>
-			<summary>Swaps scroll shortcuts of cycling item types and item tags</summary>
+			<summary>Swaps scroll shortcuts of cycling item types and item tags (Deprecated)</summary>
 		</key>
 
 		<key name="toggle-pinned-search-shortcut" type="as">
@@ -415,14 +423,14 @@
 			<summary>Shortcut to toggle the pinned search filter</summary>
 		</key>
 
-		<key name="cycle-item-type-scroll-modifier" type="s">
-			<default>'&lt;Control&gt;'</default>
-			<summary>Modifier key for cycling item types with scroll wheel</summary>
+		<key name="cycle-item-type-scroll-modifier" enum="org.gnome.shell.extensions.copyous.ScrollModifier">
+			<default>'none'</default>
+			<summary>Modifier held with the scroll wheel to cycle item types</summary>
 		</key>
 
-		<key name="cycle-item-tag-scroll-modifier" type="s">
-			<default>''</default>
-			<summary>Modifier key for cycling item tags with scroll wheel</summary>
+		<key name="cycle-item-tag-scroll-modifier" enum="org.gnome.shell.extensions.copyous.ScrollModifier">
+			<default>'ctrl'</default>
+			<summary>Modifier held with the scroll wheel to cycle item tags</summary>
 		</key>
 
 		<key name="select-next-item-shortcut" type="as">

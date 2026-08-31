@@ -12,6 +12,7 @@ import type CopyousExtension from '../../extension.js';
 import { ItemType, ItemTypes, Tag, Tags } from '../common/constants.js';
 import { enumParamSpec, registerClass } from '../common/gjs.js';
 import { Icon, loadIcon } from '../common/icons.js';
+import { ScrollModifier } from '../common/settings.js';
 import { ClipboardEntry } from '../database/database.js';
 import { Shortcut } from '../misc/shortcuts.js';
 import { TagsItem } from './components/tagsItem.js';
@@ -579,47 +580,44 @@ export class SearchEntry extends St.Entry {
 	}
 
 	override vfunc_scroll_event(event: Clutter.Event): boolean {
-		const direction = event.get_scroll_direction();
-		const typeModifier = this.ext.settings.get_string('cycle-item-type-scroll-modifier');
-		const tagModifier = this.ext.settings.get_string('cycle-item-tag-scroll-modifier');
-
-		// Check if the event matches the configured modifiers
 		const state = event.get_state();
-		const typeMatch = this.modifierMatches(state, typeModifier);
-		const tagMatch = this.modifierMatches(state, tagModifier);
+		const type = this.modifierMatches(state, this.ext.settings.get_enum('cycle-item-type-scroll-modifier'));
+		const tag = this.modifierMatches(state, this.ext.settings.get_enum('cycle-item-tag-scroll-modifier'));
 
+		const direction = event.get_scroll_direction();
 		if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT) {
-			if (typeMatch) {
-				this.prevType();
-			} else if (tagMatch) {
-				this.prevTag();
-			}
+			if (type) this.prevType();
+			else if (tag) this.prevTag();
 		} else if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT) {
-			if (typeMatch) {
-				this.nextType();
-			} else if (tagMatch) {
-				this.nextTag();
-			}
+			if (type) this.nextType();
+			else if (tag) this.nextTag();
 		}
 
 		return Clutter.EVENT_PROPAGATE;
 	}
 
-	private modifierMatches(state: Clutter.ModifierType, modifier: string): boolean {
-		// Support legacy 'swap-scroll-shortcut' setting for backward compatibility
-		if (this.ext.settings.get_boolean('swap-scroll-shortcut')) {
-			// With swap enabled: tag uses Ctrl, type uses no modifier
-			return (
-				(modifier === '<Control>' && (state & Clutter.ModifierType.CONTROL_MASK) !== 0) ||
-				(modifier === '' && (state & Clutter.ModifierType.CONTROL_MASK) === 0)
-			);
-		}
+	/**
+	 * Whether the held modifiers are exactly the configured one.
+	 *
+	 * The comparison is exact rather than a bit test, so that binding one action to no modifier and
+	 * the other to Ctrl does not make the unmodified action fire for both.
+	 */
+	private modifierMatches(state: Clutter.ModifierType, modifier: ScrollModifier): boolean {
+		const mask =
+			Clutter.ModifierType.CONTROL_MASK |
+			Clutter.ModifierType.MOD1_MASK |
+			Clutter.ModifierType.SHIFT_MASK |
+			Clutter.ModifierType.SUPER_MASK;
 
-		// Without swap (default): type uses Ctrl, tag uses no modifier
-		return (
-			(modifier === '<Control>' && (state & Clutter.ModifierType.CONTROL_MASK) !== 0) ||
-			(modifier === '' && (state & Clutter.ModifierType.CONTROL_MASK) === 0)
-		);
+		const expected = {
+			[ScrollModifier.None]: 0,
+			[ScrollModifier.Ctrl]: Clutter.ModifierType.CONTROL_MASK,
+			[ScrollModifier.Alt]: Clutter.ModifierType.MOD1_MASK,
+			[ScrollModifier.Shift]: Clutter.ModifierType.SHIFT_MASK,
+			[ScrollModifier.Super]: Clutter.ModifierType.SUPER_MASK,
+		}[modifier];
+
+		return (state & mask) === expected;
 	}
 
 	override vfunc_unmap(): void {

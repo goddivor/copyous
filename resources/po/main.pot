@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 05:14+0000\n"
+"POT-Creation-Date: 2026-08-31 05:17+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -1213,7 +1213,7 @@ msgid "Languages"
 msgstr ""
 
 #: src/lib/preferences/dependencies/dependenciesSettings.ts:321
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:49
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:15
 msgid "Search"
 msgstr ""
 
@@ -1700,56 +1700,72 @@ msgstr ""
 msgid "Select Item Type"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:33
-msgid "Scroll"
-msgstr ""
-
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:51
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:17
 msgid "Toggle Pinned Search"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:53
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:19
 msgid "Clear Item Tag/Type"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:54
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:20
 msgid "Activate First Item"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:67
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:33
 msgid "Next Item Type"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:68
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:34
 msgid "Previous Item Type"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:69
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:35
 msgid "Next Item Tag"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:70
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:36
 msgid "Previous Item Tag"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:71
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:37
 msgid "Select Item Tag"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:83
-msgid "Swap Scroll Shortcut"
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:48
+msgid "Scroll"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:84
-msgid "Swaps scroll shortcuts of cycling item types and item tags"
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:49
+msgid "Ctrl + Scroll"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:89
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:50
+msgid "Alt + Scroll"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:51
+msgid "Shift + Scroll"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:52
+msgid "Super + Scroll"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:56
 msgid "Cycle Item Type"
 msgstr ""
 
-#: src/lib/preferences/shortcuts/searchShortcuts.ts:91
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:57
+msgid "Modifier held with the scroll wheel to cycle through item types"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:63
 msgid "Cycle Item Tag"
+msgstr ""
+
+#: src/lib/preferences/shortcuts/searchShortcuts.ts:64
+msgid "Modifier held with the scroll wheel to cycle through item tags"
 msgstr ""
 
 #: src/lib/preferences/shortcuts/shortcutRow.ts:78
@@ -1881,43 +1897,43 @@ msgstr ""
 msgid "No Items Found"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:152
+#: src/lib/ui/searchEntry.ts:153
 msgid "__All"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:156
+#: src/lib/ui/searchEntry.ts:157
 msgid "__Text"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:157
+#: src/lib/ui/searchEntry.ts:158
 msgid "__Code"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:158
+#: src/lib/ui/searchEntry.ts:159
 msgid "__Image"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:159
+#: src/lib/ui/searchEntry.ts:160
 msgid "__File"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:160
+#: src/lib/ui/searchEntry.ts:161
 msgid "File__s"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:161
+#: src/lib/ui/searchEntry.ts:162
 msgid "__Link"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:162
+#: src/lib/ui/searchEntry.ts:163
 msgid "C__haracter"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:163
+#: src/lib/ui/searchEntry.ts:164
 msgid "Colo__r"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:275
+#: src/lib/ui/searchEntry.ts:276
 msgid "Type to search"
 msgstr ""
 

@@ -219,8 +219,8 @@ export const SettingsTypes = {
 	[Settings.SwapScrollShortcut]: 'boolean',
 
 	[Settings.TogglePinnedSearchShortcut]: 'strv',
-	[Settings.CycleItemTypeScrollModifier]: 'string',
-	[Settings.CycleItemTagScrollModifier]: 'string',
+	[Settings.CycleItemTypeScrollModifier]: 'enum',
+	[Settings.CycleItemTagScrollModifier]: 'enum',
 	[Settings.SelectNextItemShortcut]: 'strv',
 	[Settings.SelectPreviousItemShortcut]: 'strv',
 	[Settings.ShowSelectedItemNotification]: 'boolean',
@@ -403,6 +403,16 @@ export const PasteMethod = {
 
 export type PasteMethod = (typeof PasteMethod)[keyof typeof PasteMethod];
 
+export const ScrollModifier = {
+	None: 0,
+	Ctrl: 1,
+	Alt: 2,
+	Shift: 3,
+	Super: 4,
+} as const;
+
+export type ScrollModifier = (typeof ScrollModifier)[keyof typeof ScrollModifier];
+
 export const IndicatorDisplay = {
 	Hidden: 0,
 	IconOnly: 1,
@@ -421,6 +431,8 @@ type SettingsEnumTypes = {
 	[Settings.ClipboardPositionHorizontal]: Position;
 	[Settings.HeaderControlsVisibility]: HeaderControlsVisibility;
 	[Settings.MiddleClickAction]: MiddleClickAction;
+	[Settings.CycleItemTypeScrollModifier]: ScrollModifier;
+	[Settings.CycleItemTagScrollModifier]: ScrollModifier;
 	[Settings.PasteMethod]: PasteMethod;
 	[Settings.OpenClipboardDialogBehavior]: OpenClipboardDialogBehavior;
 
@@ -592,4 +604,12 @@ export function migrateSettings(settings: CopyousSettings): void {
 	}
 	settings.reset('show-indicator');
 	settings.reset('show-content-indicator');
+
+	// swap-scroll-shortcut -> cycle-item-{type,tag}-scroll-modifier
+	const swapScroll = settings.get_user_value<'b'>('swap-scroll-shortcut');
+	if (swapScroll !== null && swapScroll.get_boolean()) {
+		settings.set_enum('cycle-item-type-scroll-modifier', ScrollModifier.Ctrl);
+		settings.set_enum('cycle-item-tag-scroll-modifier', ScrollModifier.None);
+	}
+	settings.reset('swap-scroll-shortcut');
 }
