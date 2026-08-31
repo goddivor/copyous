@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 05:31+0000\n"
+"POT-Creation-Date: 2026-08-31 05:34+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -770,6 +770,7 @@ msgid "Recursive Wildcard"
 msgstr ""
 
 #: src/lib/preferences/customization/items/exclusions.ts:51
+#: src/lib/preferences/customization/profiles.ts:268
 msgid "List"
 msgstr ""
 
@@ -1028,24 +1029,24 @@ msgstr ""
 msgid "Items"
 msgstr ""
 
-#: src/lib/preferences/customization/profiles.ts:209
+#: src/lib/preferences/customization/profiles.ts:247
 msgid "Profiles"
 msgstr ""
 
-#: src/lib/preferences/customization/profiles.ts:210
+#: src/lib/preferences/customization/profiles.ts:248
 msgid "Choose between pre-defined profiles"
 msgstr ""
 
-#: src/lib/preferences/customization/profiles.ts:218
+#: src/lib/preferences/customization/profiles.ts:256
 #: src/lib/preferences/customization/themeCustomization.ts:77
 msgid "Default"
 msgstr ""
 
-#: src/lib/preferences/customization/profiles.ts:224
+#: src/lib/preferences/customization/profiles.ts:262
 msgid "Compact"
 msgstr ""
 
-#: src/lib/preferences/customization/profiles.ts:230
+#: src/lib/preferences/customization/profiles.ts:274
 #: src/lib/preferences/customization/themeCustomization.ts:77
 msgid "Custom"
 msgstr ""
