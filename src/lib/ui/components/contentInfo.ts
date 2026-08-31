@@ -3,7 +3,6 @@ import GLib from 'gi://GLib';
 import GObject from 'gi://GObject';
 import GdkPixbuf from 'gi://GdkPixbuf';
 import Gio from 'gi://Gio';
-import Gst from 'gi://Gst';
 import St from 'gi://St';
 
 import { Extension, gettext as _, ngettext } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -288,6 +287,9 @@ export async function tryCreateMediaFileInfo(
 	cancellable: Gio.Cancellable,
 ): Promise<MediaInfo | null> {
 	try {
+		// Lazy load Gst only when needed
+		const Gst = (await import('gi://Gst')).default;
+
 		if (!Gst.is_initialized()) {
 			Gst.init(null);
 		}
