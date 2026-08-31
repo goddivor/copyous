@@ -66,3 +66,23 @@ export function get_last_visible_child(actor: Clutter.Actor): Clutter.Actor | nu
 	}
 	return last.visible ? last : get_previous_visible_sibling(last);
 }
+
+/**
+ * Retrieves the visible sibling of `actor` that is `offset` positions away from it in the list of
+ * visible children of `actor`'s parent.
+ * @param actor The actor to get the visible sibling of.
+ * @param offset How many visible siblings to step over, negative to step backwards.
+ * @returns the visible sibling or null when there are fewer visible siblings left than `offset`.
+ */
+export function get_visible_sibling(actor: Clutter.Actor, offset: number): Clutter.Actor | null {
+	if (offset === 0) return null;
+
+	const step = offset < 0 ? get_previous_visible_sibling : get_next_visible_sibling;
+
+	let sibling: Clutter.Actor | null = actor;
+	for (let i = Math.abs(offset); i > 0 && sibling !== null; i--) {
+		sibling = step(sibling);
+	}
+
+	return sibling;
+}

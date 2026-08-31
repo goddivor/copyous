@@ -1,23 +1,238 @@
 import Clutter from 'gi://Clutter';
+import GObject from 'gi://GObject';
 import St from 'gi://St';
 
 import type CopyousExtension from '../../extension.js';
-import { registerClass } from '../common/gjs.js';
+import { enumParamSpec, registerClass } from '../common/gjs.js';
 import {
 	get_first_visible_child,
 	get_last_visible_child,
 	get_n_visible_children,
 	get_next_visible_sibling,
 	get_previous_visible_sibling,
+	get_visible_sibling,
 } from '../misc/actor.js';
 import { ClipboardItem } from './items/clipboardItem.js';
 import { State, StatusItem } from './items/statusItem.js';
 import { SearchChange, SearchQuery } from './searchEntry.js';
 
+/**
+ * Lays the visible children of a container out in a grid.
+ *
+ * Cells are filled in child order, one line at a time along `orientation`, wrapping to the next
+ * line after `itemsPerLine` items. Reading the grid left to right and then top to bottom (top to
+ * bottom and then left to right when the orientation is vertical) therefore yields exactly the
+ * order of the children, which is the order the container maintains on insertion. Hidden children
+ * are skipped rather than given a cell, so a search that filters the list leaves no holes.
+ *
+ * `Clutter.GridLayout` was not used: it stores an explicit (column, row) per child, which would
+ * have to be recomputed for every child on every insertion, re-sort and visibility change.
+ * `Clutter.FlowLayout` was not used either: it derives the number of lines from the available size
+ * and cannot honor a fixed line length.
+ */
 @registerClass()
-export class ClipboardScrollContainer extends St.BoxLayout {
+class ClipboardGridLayout extends Clutter.LayoutManager {
+	private _orientation: Clutter.Orientation = Clutter.Orientation.HORIZONTAL;
+	private _spacing: number = 0;
+	private _itemsPerLine: number = 1;
+
+	// Last cell size measured while items were visible. The status item replaces the items when
+	// nothing matches the search, and it is not item sized, so measuring it would resize the whole
+	// dialog for as long as the search matches nothing.
+	private _cellWidth: number = 0;
+	private _cellHeight: number = 0;
+
+	get orientation(): Clutter.Orientation {
+		return this._orientation;
+	}
+
+	set orientation(value: Clutter.Orientation) {
+		if (this._orientation === value) return;
+
+		this._orientation = value;
+		this.layout_changed();
+	}
+
+	get spacing(): number {
+		return this._spacing;
+	}
+
+	set spacing(value: number) {
+		if (this._spacing === value) return;
+
+		this._spacing = value;
+		this.layout_changed();
+	}
+
+	get itemsPerLine(): number {
+		return this._itemsPerLine;
+	}
+
+	set itemsPerLine(value: number) {
+		const items = Math.max(1, value);
+		if (this._itemsPerLine === items) return;
+
+		this._itemsPerLine = items;
+		this.layout_changed();
+	}
+
+	private static visibleChildren(container: Clutter.Actor): Clutter.Actor[] {
+		return container.get_children().filter((child) => child.visible);
+	}
+
+	/**
+	 * Whether the container holds nothing but the status item, which is given the whole box instead
+	 * of a single cell so that it stays centered like it is in a single line.
+	 */
+	private static isStatusOnly(children: Clutter.Actor[]): boolean {
+		return children.length === 1 && !(children[0] instanceof ClipboardItem);
+	}
+
+	/**
+	 * The size of a single cell. Every cell is as large as the largest visible item so that the
+	 * columns and the rows line up.
+	 */
+	private cellSize(container: Clutter.Actor): [number, number] {
+		let width = 0;
+		let height = 0;
+		for (const child of ClipboardGridLayout.visibleChildren(container)) {
+			if (!(child instanceof ClipboardItem)) continue;
+
+			const [, natWidth] = child.get_preferred_width(-1);
+			const [, natHeight] = child.get_preferred_height(-1);
+			width = Math.max(width, natWidth);
+			height = Math.max(height, natHeight);
+		}
+
+		if (width > 0 && height > 0) {
+			this._cellWidth = width;
+			this._cellHeight = height;
+		}
+
+		return [this._cellWidth, this._cellHeight];
+	}
+
+	/**
+	 * The number of lines the visible children are laid out on.
+	 * @param container The container to lay out.
+	 * @returns the number of lines, at least one.
+	 */
+	public lineCount(container: Clutter.Actor): number {
+		return Math.max(1, Math.ceil(get_n_visible_children(container) / this._itemsPerLine));
+	}
+
+	/**
+	 * The size of the grid along the scroll axis that does not fit in `maxLines` lines.
+	 * @param container The container to lay out.
+	 * @param maxLines The number of lines that should be shown at once.
+	 * @returns the size that has to be trimmed from the preferred size of the container.
+	 */
+	public overflow(container: Clutter.Actor, maxLines: number): number {
+		const [cellWidth, cellHeight] = this.cellSize(container);
+		const cell = this._orientation === Clutter.Orientation.HORIZONTAL ? cellHeight : cellWidth;
+
+		const lines = this.lineCount(container);
+		const shown = Math.max(1, Math.min(maxLines, lines));
+		return (lines - shown) * (cell + this._spacing);
+	}
+
+	/**
+	 * The number of columns and rows of the grid.
+	 */
+	private gridSize(container: Clutter.Actor): [number, number] {
+		const lines = this.lineCount(container);
+		return this._orientation === Clutter.Orientation.HORIZONTAL
+			? [this._itemsPerLine, lines]
+			: [lines, this._itemsPerLine];
+	}
+
+	override vfunc_get_preferred_width(container: Clutter.Actor, _forHeight: number): [number, number] {
+		const children = ClipboardGridLayout.visibleChildren(container);
+		if (children.length === 0) return [0, 0];
+
+		const [cellWidth] = this.cellSize(container);
+		const [columns] = this.gridSize(container);
+
+		// The status item is the only child while the history is empty or nothing matches the
+		// search, but the grid keeps the width it has with items so the dialog does not resize.
+		const width = Math.max(columns * cellWidth + (columns - 1) * this._spacing, 0);
+		if (ClipboardGridLayout.isStatusOnly(children)) {
+			const [minWidth, natWidth] = children[0]!.get_preferred_width(-1);
+			return [Math.max(width, minWidth), Math.max(width, natWidth)];
+		}
+
+		return [width, width];
+	}
+
+	override vfunc_get_preferred_height(container: Clutter.Actor, _forWidth: number): [number, number] {
+		const children = ClipboardGridLayout.visibleChildren(container);
+		if (children.length === 0) return [0, 0];
+
+		const [, cellHeight] = this.cellSize(container);
+		const [, rows] = this.gridSize(container);
+
+		const height = Math.max(rows * cellHeight + (rows - 1) * this._spacing, 0);
+		if (ClipboardGridLayout.isStatusOnly(children)) {
+			const [minHeight, natHeight] = children[0]!.get_preferred_height(-1);
+			return [Math.max(height, minHeight), Math.max(height, natHeight)];
+		}
+
+		return [height, height];
+	}
+
+	override vfunc_allocate(container: Clutter.Actor, allocation: Clutter.ActorBox): void {
+		const children = ClipboardGridLayout.visibleChildren(container);
+		if (children.length === 0) return;
+
+		if (ClipboardGridLayout.isStatusOnly(children)) {
+			children[0]!.allocate(allocation);
+			return;
+		}
+
+		const [cellWidth, cellHeight] = this.cellSize(container);
+		const horizontal = this._orientation === Clutter.Orientation.HORIZONTAL;
+		const rtl = container.text_direction === Clutter.TextDirection.RTL;
+
+		for (const [i, child] of children.entries()) {
+			const line = Math.floor(i / this._itemsPerLine);
+			const position = i % this._itemsPerLine;
+			const column = horizontal ? position : line;
+			const row = horizontal ? line : position;
+
+			const x = rtl
+				? allocation.x2 - (column + 1) * cellWidth - column * this._spacing
+				: allocation.x1 + column * (cellWidth + this._spacing);
+			const y = allocation.y1 + row * (cellHeight + this._spacing);
+
+			child.allocate(new Clutter.ActorBox({ x1: x, y1: y, x2: x + cellWidth, y2: y + cellHeight }));
+		}
+	}
+}
+
+@registerClass({
+	Properties: {
+		orientation: enumParamSpec(
+			'orientation',
+			GObject.ParamFlags.READWRITE,
+			Clutter.Orientation,
+			Clutter.Orientation.HORIZONTAL,
+		),
+	},
+})
+export class ClipboardScrollContainer extends St.Viewport {
 	private readonly _ext: CopyousExtension;
 	private readonly _statusItem: StatusItem;
+
+	// The container is a viewport rather than a St.BoxLayout so that the layout manager can be
+	// swapped for the grid one. St.BoxLayout is a viewport that hard-casts its layout manager to a
+	// Clutter.BoxLayout whenever its orientation is read or written, which any other layout manager
+	// would turn into a stream of criticals.
+	private readonly _boxLayout: Clutter.BoxLayout;
+	private readonly _gridLayout: ClipboardGridLayout;
+
+	private _orientation: Clutter.Orientation = Clutter.Orientation.HORIZONTAL;
+	private _spacing: number = 0;
+	private _gridMode: boolean = false;
 	private _lastFocus: Clutter.Actor | null = null;
 	private _lastQuery: SearchQuery | null = null;
 
@@ -29,8 +244,89 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		});
 
 		this._ext = ext;
+
+		this._boxLayout = new Clutter.BoxLayout({ orientation: Clutter.Orientation.HORIZONTAL });
+		this._gridLayout = new ClipboardGridLayout();
+		this.layout_manager = this._boxLayout;
+
 		this._statusItem = new StatusItem(ext);
+
+		// prettier-ignore
+		this._ext.settings.connectObject(
+			'changed::grid-mode', this.updateGrid.bind(this),
+			'changed::grid-items-per-line', this.updateGrid.bind(this),
+			this);
+
+		this.updateGrid();
 		this.updateVisible();
+	}
+
+	override destroy(): void {
+		this._ext.settings.disconnectObject(this);
+
+		super.destroy();
+	}
+
+	get orientation(): Clutter.Orientation {
+		return this._orientation;
+	}
+
+	set orientation(value: Clutter.Orientation) {
+		if (this._orientation === value) return;
+
+		this._orientation = value;
+		this._boxLayout.orientation = value;
+		this._gridLayout.orientation = value;
+		this.notify('orientation');
+	}
+
+	/** Whether the items are laid out in a grid instead of a single line. */
+	get gridMode(): boolean {
+		return this._gridMode;
+	}
+
+	/** The spacing between two items, taken from the `spacing` CSS property. */
+	get spacing(): number {
+		return this._spacing;
+	}
+
+	/**
+	 * The axis the items scroll along. A grid is filled along its orientation and therefore scrolls
+	 * perpendicular to it, a single line scrolls along its orientation.
+	 */
+	get scrollOrientation(): Clutter.Orientation {
+		if (!this._gridMode) return this._orientation;
+
+		return this._orientation === Clutter.Orientation.HORIZONTAL
+			? Clutter.Orientation.VERTICAL
+			: Clutter.Orientation.HORIZONTAL;
+	}
+
+	/**
+	 * The size along the scroll axis that has to be trimmed from the preferred size of the
+	 * container so that at most `maxLines` lines of the grid are shown at once.
+	 * @param maxLines The number of lines that should be shown at once.
+	 * @returns the size to trim, zero when the items are laid out in a single line.
+	 */
+	public gridOverflow(maxLines: number): number {
+		if (!this._gridMode) return 0;
+
+		return this._gridLayout.overflow(this, maxLines);
+	}
+
+	private updateGrid(): void {
+		this._gridLayout.itemsPerLine = this._ext.settings.get_int('grid-items-per-line');
+
+		const gridMode = this._ext.settings.get_boolean('grid-mode');
+		if (gridMode === this._gridMode) return;
+
+		this._gridMode = gridMode;
+
+		// The first-child and last-child margins pad the two ends of a single line. In a grid they
+		// would offset the first and the last cell only, which breaks the alignment of the columns.
+		if (gridMode) this.removePseudoclasses();
+		this.layout_manager = gridMode ? this._gridLayout : this._boxLayout;
+		if (!gridMode) this.updatePseudoclasses();
 	}
 
 	private updateVisible() {
@@ -60,6 +356,8 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 	}
 
 	private updatePseudoclasses(): void {
+		if (this._gridMode) return;
+
 		(get_first_visible_child(this) as St.Widget | null)?.add_style_pseudo_class('first-child');
 		(get_last_visible_child(this) as St.Widget | null)?.add_style_pseudo_class('last-child');
 	}
@@ -100,16 +398,16 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		const box = child.get_allocation_box();
 		let adjustment: St.Adjustment;
 		let value: number;
-		if (this.orientation === Clutter.Orientation.HORIZONTAL) {
+		if (this.scrollOrientation === Clutter.Orientation.HORIZONTAL) {
 			adjustment = this.hadjustment;
 			value = box.x1 + box.get_width() * 0.5 - adjustment.page_size * 0.5;
+
+			if (this.text_direction === Clutter.TextDirection.RTL) {
+				value = adjustment.get_upper() - adjustment.page_size - value;
+			}
 		} else {
 			adjustment = this.vadjustment;
 			value = box.y1 + box.get_height() * 0.5 - adjustment.page_size * 0.5;
-		}
-
-		if (this.text_direction === Clutter.TextDirection.RTL) {
-			value = adjustment.get_upper() - adjustment.page_size - value;
 		}
 
 		if (animate) {
@@ -208,6 +506,10 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		return null;
 	}
 
+	/**
+	 * The grid reads the cells straight off the list of children, so sorting stays a matter of
+	 * putting the item at the right child index, exactly like it is for a single line.
+	 */
 	private insertOrMoveItem(item: ClipboardItem, search: boolean = true, updateVisibility: boolean = true): void {
 		this.removePseudoclasses();
 
@@ -378,6 +680,66 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		}
 	}
 
+	/**
+	 * Moves the focus inside the grid.
+	 *
+	 * The arrow keys along the fill axis step by one item, so they follow the child order and wrap
+	 * from the end of a line to the start of the next one. The arrow keys across the fill axis step
+	 * by a whole line, which is the same item of the previous or the next line. Tab keeps stepping
+	 * by one item in either direction, whatever the orientation is.
+	 */
+	private navigateGrid(from: Clutter.Actor, direction: St.DirectionType): boolean {
+		const horizontal = this._orientation === Clutter.Orientation.HORIZONTAL;
+		const line = this._gridLayout.itemsPerLine;
+
+		let offset: number;
+		switch (direction) {
+			case St.DirectionType.TAB_FORWARD:
+				offset = 1;
+				break;
+			case St.DirectionType.TAB_BACKWARD:
+				offset = -1;
+				break;
+			case St.DirectionType.RIGHT:
+				offset = horizontal ? 1 : line;
+				break;
+			case St.DirectionType.LEFT:
+				offset = horizontal ? -1 : -line;
+				break;
+			case St.DirectionType.DOWN:
+				offset = horizontal ? line : 1;
+				break;
+			case St.DirectionType.UP:
+				offset = horizontal ? -line : -1;
+				break;
+			default:
+				return Clutter.EVENT_PROPAGATE;
+		}
+
+		let target = get_visible_sibling(from, offset);
+
+		// Stepping a whole line forward from the last, partially filled line lands past the end.
+		// Falling back to the last item keeps that line one key press away.
+		if (target === null && offset > 1) {
+			const last = get_last_visible_child(this);
+			if (last !== null && last !== from) target = last;
+		}
+
+		if (target !== null && target !== this._statusItem) {
+			this.focusChild(target);
+			return Clutter.EVENT_STOP;
+		}
+
+		// Leaving the grid backwards reaches the search entry, leaving it forwards reaches the
+		// footer, which only exists in the vertical orientation.
+		if (offset < 0 || direction === St.DirectionType.TAB_FORWARD || !horizontal) {
+			this._lastFocus = from;
+			return Clutter.EVENT_PROPAGATE;
+		}
+
+		return Clutter.EVENT_STOP;
+	}
+
 	override vfunc_navigate_focus(from: Clutter.Actor | null, direction: St.DirectionType): boolean {
 		// Navigation from the search entry
 		if (from?.get_parent() !== this) {
@@ -409,6 +771,10 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			this.scrollToChild(this._lastFocus);
 			return Clutter.EVENT_STOP;
 		}
+
+		// The focus moves through a grid by cell, which is not the same as by sibling for the two
+		// directions across the fill axis.
+		if (this._gridMode) return this.navigateGrid(from, direction);
 
 		const first = get_first_visible_child(this);
 		const last = get_last_visible_child(this);
@@ -468,6 +834,16 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		const res = super.vfunc_navigate_focus(from, tabDirection);
 		this.scrollToFocus();
 		return res;
+	}
+
+	override vfunc_style_changed(): void {
+		// St.BoxLayout forwards the spacing CSS property to its layout manager, St.Viewport does
+		// not, so the container has to do it itself for both of its layouts.
+		this._spacing = Math.round(this.get_theme_node().get_length('spacing'));
+		this._boxLayout.spacing = this._spacing;
+		this._gridLayout.spacing = this._spacing;
+
+		super.vfunc_style_changed();
 	}
 
 	override vfunc_map(): void {

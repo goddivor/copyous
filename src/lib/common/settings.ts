@@ -50,6 +50,9 @@ export const Settings = {
 
 	AutoHideSearch: 'auto-hide-search',
 	ShowScrollbar: 'show-scrollbar',
+	GridMode: 'grid-mode',
+	GridItemsPerLine: 'grid-items-per-line',
+	GridLines: 'grid-lines',
 
 	ItemWidth: 'item-width',
 	ItemHeight: 'item-height',
@@ -205,6 +208,9 @@ export const SettingsTypes = {
 
 	[Settings.AutoHideSearch]: 'boolean',
 	[Settings.ShowScrollbar]: 'boolean',
+	[Settings.GridMode]: 'boolean',
+	[Settings.GridItemsPerLine]: 'int',
+	[Settings.GridLines]: 'int',
 
 	[Settings.ItemWidth]: 'int',
 	[Settings.ItemHeight]: 'int',

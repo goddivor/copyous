@@ -23,6 +23,7 @@ export class ClipboardScrollView extends St.ScrollView {
 	private _orientation: Clutter.Orientation = Clutter.Orientation.HORIZONTAL;
 	private _itemWidth: number = 0;
 	private _itemHeight: number = 0;
+	private _gridLines: number = 1;
 
 	private readonly _scrollContainer: ClipboardScrollContainer;
 
@@ -50,17 +51,18 @@ export class ClipboardScrollView extends St.ScrollView {
 		this._scrollContainer.connect('notify::width', this.scrollbarWorkaround.bind(this));
 
 		// Connect properties
+		// prettier-ignore
 		this.ext.settings.connectObject(
-			'changed::show-scrollbar',
-			this.updateScrollbar.bind(this),
-			'changed::item-width',
-			this.updateSize.bind(this),
-			'changed::item-height',
-			this.updateSize.bind(this),
-			this,
-		);
+			'changed::show-scrollbar', this.updateScrollbar.bind(this),
+			'changed::item-width', this.updateSize.bind(this),
+			'changed::item-height', this.updateSize.bind(this),
+			'changed::grid-mode', this.updateGrid.bind(this),
+			'changed::grid-lines', this.updateGrid.bind(this),
+			'changed::grid-items-per-line', () => this.queue_relayout(),
+			this);
 
 		this.updateSize();
+		this.updateGrid();
 		this.updateScrollbar();
 
 		this.bind_property('orientation', this._scrollContainer, 'orientation', GObject.BindingFlags.SYNC_CREATE);
@@ -126,13 +128,22 @@ export class ClipboardScrollView extends St.ScrollView {
 		this._itemHeight = this.ext.settings.get_int('item-height');
 	}
 
+	private updateGrid() {
+		this._gridLines = this.ext.settings.get_int('grid-lines');
+
+		this.updateScrollbar();
+		this.queue_relayout();
+	}
+
 	private updateScrollbar() {
 		const show = this.ext.settings.get_boolean('show-scrollbar');
 
+		// A grid is filled along its orientation and scrolls perpendicular to it, so the scrollbar
+		// sits on the other axis than it does for a single line.
 		if (!show) {
 			this.vscrollbarPolicy = St.PolicyType.NEVER;
 			this.hscrollbarPolicy = St.PolicyType.NEVER;
-		} else if (this._orientation === Clutter.Orientation.HORIZONTAL) {
+		} else if (this._scrollContainer.scrollOrientation === Clutter.Orientation.HORIZONTAL) {
 			this.vscrollbarPolicy = St.PolicyType.NEVER;
 			this.hscrollbarPolicy = St.PolicyType.AUTOMATIC;
 		} else {
@@ -144,13 +155,37 @@ export class ClipboardScrollView extends St.ScrollView {
 	private scrollbarWorkaround(): void {
 		// Workaround for horizontal scrollbar not auto hiding
 		const show = this.ext.settings.get_boolean('show-scrollbar');
-		if (show && this.orientation === Clutter.Orientation.HORIZONTAL) {
+		if (show && this._scrollContainer.scrollOrientation === Clutter.Orientation.HORIZONTAL) {
 			if (this.allocation.get_width() > this._scrollContainer.allocation.get_width()) {
 				this.hscrollbarPolicy = St.PolicyType.EXTERNAL;
 			} else {
 				this.hscrollbarPolicy = St.PolicyType.AUTOMATIC;
 			}
 		}
+	}
+
+	/**
+	 * A grid reports the size of all of its lines so that the viewport knows how far it can scroll.
+	 * Capping the preferred size to `grid-lines` lines here is what turns the extra lines into
+	 * something to scroll to instead of something that grows the dialog.
+	 */
+	private gridPreferredSize(min: number, nat: number): [number, number] {
+		const overflow = this._scrollContainer.gridOverflow(this._gridLines);
+		return [Math.max(0, min - overflow), Math.max(0, nat - overflow)];
+	}
+
+	override vfunc_get_preferred_height(forWidth: number): [number, number] {
+		const [min, nat] = super.vfunc_get_preferred_height(forWidth);
+		if (this._scrollContainer.scrollOrientation !== Clutter.Orientation.VERTICAL) return [min, nat];
+
+		return this.gridPreferredSize(min, nat);
+	}
+
+	override vfunc_get_preferred_width(forHeight: number): [number, number] {
+		const [min, nat] = super.vfunc_get_preferred_width(forHeight);
+		if (this._scrollContainer.scrollOrientation !== Clutter.Orientation.HORIZONTAL) return [min, nat];
+
+		return this.gridPreferredSize(min, nat);
 	}
 
 	override vfunc_key_press_event(event: Clutter.Event): boolean {
@@ -181,6 +216,10 @@ export class ClipboardScrollView extends St.ScrollView {
 		let delta = 0;
 		let animate = false;
 
+		// The scroll axis is the fill axis for a single line, and the axis the lines stack along
+		// for a grid, so one step is always one item further down the list.
+		const orientation = this._scrollContainer.scrollOrientation;
+
 		const scrollSource = event.get_scroll_source();
 		const direction = event.get_scroll_direction();
 		if (scrollSource === Clutter.ScrollSource.WHEEL || scrollSource === Clutter.ScrollSource.UNKNOWN) {
@@ -191,16 +230,16 @@ export class ClipboardScrollView extends St.ScrollView {
 			}
 			animate = true;
 		} else if (direction === Clutter.ScrollDirection.SMOOTH) {
-			delta = event.get_scroll_delta()[this.orientation]!;
+			delta = event.get_scroll_delta()[orientation]!;
 		}
 
 		if (delta === 0) return Clutter.EVENT_STOP;
 
-		const spacing = (this._scrollContainer.get_layout_manager() as Clutter.BoxLayout).spacing;
+		const spacing = this._scrollContainer.spacing;
 
 		let adjustment: St.Adjustment;
 		let step: number;
-		if (this._orientation === Clutter.Orientation.HORIZONTAL) {
+		if (orientation === Clutter.Orientation.HORIZONTAL) {
 			adjustment = this.hadjustment;
 			step = this._itemWidth + spacing;
 		} else {

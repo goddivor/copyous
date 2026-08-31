@@ -396,6 +396,7 @@ export class ClipboardDialog extends St.Widget {
 			'changed::clipboard-position-horizontal', this.updatePosition.bind(this),
 			'changed::clipboard-position-vertical', this.updatePosition.bind(this),
 			'changed::clipboard-size', this.updatePosition.bind(this),
+			'changed::grid-mode', this.updatePosition.bind(this),
 			'changed::clipboard-margin-top', this.updateMargins.bind(this),
 			'changed::clipboard-margin-bottom', this.updateMargins.bind(this),
 			'changed::clipboard-margin-left', this.updateMargins.bind(this),
@@ -743,18 +744,23 @@ export class ClipboardDialog extends St.Widget {
 			this._dialog.y_align = (positionVertical + 1) % 4;
 		}
 
+		// A grid is as wide as the number of items it fits on a line and as tall as the number of
+		// lines it shows, both of which are settings of their own, so the size in pixels no longer
+		// applies to the axis the items are filled along.
+		const gridMode = this.ext.settings.get_boolean('grid-mode');
+
 		if (this._orientation === Clutter.Orientation.HORIZONTAL) {
 			this._dialog.add_style_class_name('horizontal');
 			this._dialog.remove_style_class_name('vertical');
 
-			this._dialog.width = size;
+			this._dialog.width = gridMode ? -1 : size;
 			this._dialog.height = -1;
 		} else {
 			this._dialog.remove_style_class_name('horizontal');
 			this._dialog.add_style_class_name('vertical');
 
 			this._dialog.width = -1;
-			this._dialog.height = size;
+			this._dialog.height = gridMode ? -1 : size;
 		}
 
 		// Header / Footer

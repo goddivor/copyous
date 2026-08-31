@@ -19,6 +19,7 @@ export class DialogCustomization extends Adw.PreferencesGroup {
 	private readonly _vertical: Gtk.StringList;
 	private readonly _verticalPosition: Adw.ComboRow;
 	private readonly _size: Adw.SpinRow;
+	private readonly _grid: Adw.ExpanderRow;
 
 	constructor(prefs: Preferences) {
 		super({
@@ -77,6 +78,28 @@ export class DialogCustomization extends Adw.PreferencesGroup {
 		});
 		position.add_row(this._size);
 
+		this._grid = new Adw.ExpanderRow({
+			title: _('Grid'),
+			subtitle: _('Wrap the items onto several lines and scroll perpendicular to them'),
+			show_enable_switch: true,
+		});
+		this.add(this._grid);
+		this._grid.connect('notify::enable-expansion', this.updatePosition.bind(this));
+
+		const gridItemsPerLine = new Adw.SpinRow({
+			title: _('Items per Line'),
+			subtitle: _('Number of items on a line of the grid, which also sets the size of the dialog'),
+			adjustment: new Gtk.Adjustment({ lower: 1, upper: 20, step_increment: 1, value: 5 }),
+		});
+		this._grid.add_row(gridItemsPerLine);
+
+		const gridLines = new Adw.SpinRow({
+			title: _('Visible Lines'),
+			subtitle: _('Number of lines shown at once, the remaining lines are scrolled to'),
+			adjustment: new Gtk.Adjustment({ lower: 1, upper: 10, step_increment: 1, value: 2 }),
+		});
+		this._grid.add_row(gridLines);
+
 		const margins = new Adw.ExpanderRow({
 			title: _('Margins'),
 			subtitle: _('Change the distance of the dialog from the screen edges'),
@@ -131,6 +154,9 @@ export class DialogCustomization extends Adw.PreferencesGroup {
 		bind_enum(settings, 'clipboard-position-vertical', this._verticalPosition, 'selected');
 		bind_enum(settings, 'clipboard-position-horizontal', this._horizontalPosition, 'selected');
 		settings.bind('clipboard-size', this._size, 'value', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('grid-mode', this._grid, 'enable-expansion', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('grid-items-per-line', gridItemsPerLine, 'value', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('grid-lines', gridLines, 'value', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('clipboard-margin-top', topMargin, 'value', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('clipboard-margin-right', rightMargin, 'value', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('clipboard-margin-bottom', bottomMargin, 'value', Gio.SettingsBindFlags.DEFAULT);
@@ -148,6 +174,9 @@ export class DialogCustomization extends Adw.PreferencesGroup {
 			'clipboard-position-horizontal',
 			'clipboard-size',
 		);
+		makeResettable(this._grid, settings, 'grid-mode', 'grid-items-per-line', 'grid-lines');
+		makeResettable(gridItemsPerLine, settings, 'grid-items-per-line');
+		makeResettable(gridLines, settings, 'grid-lines');
 		makeResettable(
 			margins,
 			settings,
@@ -213,6 +242,9 @@ export class DialogCustomization extends Adw.PreferencesGroup {
 
 	private updatePosition() {
 		const fill = this._verticalPosition.selected === 3 || this._horizontalPosition.selected === 3;
-		this._size.sensitive = !fill || this._showAtPointer.active;
+
+		// A grid takes its size from the number of items on a line and the number of visible lines,
+		// so the size in pixels no longer applies.
+		this._size.sensitive = (!fill || this._showAtPointer.active) && !this._grid.enable_expansion;
 	}
 }

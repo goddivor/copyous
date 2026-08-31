@@ -316,6 +316,20 @@
 			<default>true</default>
 			<summary>Show a scrollbar when items overflow</summary>
 		</key>
+		<key name="grid-mode" type="b">
+			<default>false</default>
+			<summary>Arrange the clipboard items in a grid instead of a single line</summary>
+		</key>
+		<key name="grid-items-per-line" type="i">
+			<default>5</default>
+			<range min="1" max="20"/>
+			<summary>Number of clipboard items on a line of the grid</summary>
+		</key>
+		<key name="grid-lines" type="i">
+			<default>2</default>
+			<range min="1" max="10"/>
+			<summary>Number of lines of the grid shown at once</summary>
+		</key>
 
 		<!-- Item -->
 		<key name="item-width" type="i">
