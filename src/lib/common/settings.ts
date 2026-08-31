@@ -13,6 +13,7 @@ export const Settings = {
 	HistoryLength: 'history-length',
 	HistoryTime: 'history-time',
 	IgnoreImages: 'ignore-images',
+	PreserveHtmlContent: 'preserve-html-content',
 
 	RememberSearch: 'remember-search',
 	ExcludePinned: 'exclude-pinned',
@@ -146,6 +147,7 @@ export const SettingsTypes = {
 	[Settings.HistoryLength]: 'int',
 	[Settings.HistoryTime]: 'int',
 	[Settings.IgnoreImages]: 'boolean',
+	[Settings.PreserveHtmlContent]: 'boolean',
 
 	[Settings.RememberSearch]: 'boolean',
 	[Settings.ExcludePinned]: 'boolean',

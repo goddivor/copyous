@@ -27,6 +27,7 @@ const GraphemeSegmenter = new Intl.Segmenter();
 
 const MimeTypes = {
 	Text: ['text/plain;charset=utf-8', 'UTF8_STRING', 'text/plain', 'STRING'],
+	Html: ['text/html'],
 	Image: ['image/png', 'image/jxl', 'image/webp', 'image/avif', 'image/jpeg'],
 	File: ['x-special/gnome-copied-files', 'text/uri-list'],
 	Sensitive: ['x-kde-passwordManagerHint'],
@@ -41,7 +42,7 @@ export const ContentType = {
 export type ContentType = (typeof ContentType)[keyof typeof ContentType];
 
 type ClipboardContent =
-	| { type: (typeof ContentType)['Text']; text: string }
+	| { type: (typeof ContentType)['Text']; text: string; html?: string }
 	| { type: (typeof ContentType)['Image']; mimetype: string; data: Uint8Array; checksum: string }
 	| { type: (typeof ContentType)['File']; paths: string[]; operation: FileOperation };
 
@@ -267,6 +268,36 @@ export class ClipboardManager extends GObject.Object {
 		this.pasteContent({ type: ContentType.Text, text: s });
 	}
 
+	public pasteHtml(htmlContent: string) {
+		const bytes = Utf8Encoder.encode(htmlContent);
+		this.clipboard.set_content(St.ClipboardType.CLIPBOARD, 'text/html', bytes);
+
+		// Synthesize paste keystrokes after a short delay to ensure content is available
+		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
+		this.pasteSignalId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
+			this.keyboard ??= new Keyboard();
+			const keyboard = this.keyboard;
+			const pasteMethod = this.ext.settings.get_enum('paste-method');
+
+			if (pasteMethod === PasteMethod.CtrlV) {
+				// Use Ctrl+V with HTML-aware applications
+				keyboard.press(Clutter.KEY_Control_L);
+				keyboard.press(Clutter.KEY_v);
+				keyboard.release(Clutter.KEY_v);
+				keyboard.release(Clutter.KEY_Control_L);
+			} else if (pasteMethod === PasteMethod.ShiftInsert) {
+				// Use Shift+Insert as fallback
+				keyboard.press(Clutter.KEY_Shift_L);
+				keyboard.press(Clutter.KEY_Insert);
+				keyboard.release(Clutter.KEY_Insert);
+				keyboard.release(Clutter.KEY_Shift_L);
+			}
+
+			this.pasteSignalId = -1;
+			return GLib.SOURCE_REMOVE;
+		});
+	}
+
 	public copyPng(data: Uint8Array, width: number, height: number) {
 		const checksum = GLib.compute_checksum_for_bytes(GLib.ChecksumType.MD5, data);
 		if (!checksum) return;
@@ -445,7 +476,25 @@ export class ClipboardManager extends GObject.Object {
 			const bytes = await getBytes(textMimeType);
 			const text = Utf8Decoder.decode(bytes);
 			if (text && text.trim()) {
-				return { type: ContentType.Text, text };
+				// Try to read HTML if available
+				let html: string | undefined;
+				if (this.ext.settings.get_boolean('preserve-html-content')) {
+					const htmlMimeType = MimeTypes.Html.find((value) => mimeTypes.includes(value));
+					if (htmlMimeType) {
+						try {
+							const htmlBytes = await getBytes(htmlMimeType);
+							const htmlText = Utf8Decoder.decode(htmlBytes);
+							// Limit HTML size to prevent excessively large database entries
+							const maxHtmlSize = 100 * 1024; // 100 KB
+							if (htmlText && htmlText.length > 0 && htmlText.length <= maxHtmlSize) {
+								html = htmlText;
+							}
+						} catch {
+							// Ignore HTML read errors, fall back to text only
+						}
+					}
+				}
+				return html ? { type: ContentType.Text, text, html } : { type: ContentType.Text, text };
 			} else {
 				return null;
 			}
@@ -493,7 +542,8 @@ export class ClipboardManager extends GObject.Object {
 			}
 
 			// Text
-			return [ItemType.Text, content.text, null];
+			const metadata = content.html ? { htmlContent: content.html } : null;
+			return [ItemType.Text, content.text, metadata];
 		}
 
 		// Image

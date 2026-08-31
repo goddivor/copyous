@@ -8,7 +8,7 @@ import { ClipboardHistory } from '../common/settings.js';
 /**
  * Metadata.
  */
-export type Metadata = CodeMetadata | FileMetadata | LinkMetadata;
+export type Metadata = CodeMetadata | FileMetadata | LinkMetadata | TextMetadata;
 
 /**
  * Programming language.
@@ -23,6 +23,13 @@ export interface Language {
  */
 export interface CodeMetadata {
 	language: Language | null;
+}
+
+/**
+ * Text metadata.
+ */
+export interface TextMetadata {
+	htmlContent?: string;
 }
 
 /**
