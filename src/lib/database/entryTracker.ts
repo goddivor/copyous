@@ -14,22 +14,12 @@ import { MemoryDatabase } from './memory.js';
 export class ClipboardEntryTracker {
 	private _database: Database | undefined;
 	private _entries: Map<number, ClipboardEntry> = new Map();
-	private _fromDefault: boolean = false;
 
 	constructor(private ext: CopyousExtension) {}
 
-	get shouldInit(): boolean {
-		if (this._fromDefault) {
-			this._fromDefault = false;
-			return false;
-		}
-
-		return true;
-	}
-
 	async init(): Promise<ClipboardEntry[]> {
 		if (this._database) {
-			await this.clear();
+			// Close without clearing on re-initialization
 			await this.destroy();
 		}
 
@@ -49,18 +39,21 @@ export class ClipboardEntryTracker {
 		// 6. fallback to in-memory
 		let entries: ClipboardEntry[] | null = null;
 		if (backend === DatabaseBackend.Default) {
-			this._fromDefault = true;
 			if (this.ext.settings.get_boolean('in-memory-database')) {
 				this.ext.logger.log('Set default database backend to in-memory');
 				entries = await this.initMemory();
 			} else if (dbFile.query_exists(null)) {
 				entries = await this.initSqlite(dbFile, true);
-				this.ext.settings.set_enum('database-backend', DatabaseBackend.Sqlite);
-				this.ext.logger.log('Set default database backend to SQLite');
+				if (entries !== null) {
+					this.ext.settings.set_enum('database-backend', DatabaseBackend.Sqlite);
+					this.ext.logger.log('Set default database backend to SQLite');
+				}
 			} else if (jsonFile.query_exists(null)) {
 				entries = await this.initJson(jsonFile);
-				this.ext.settings.set_enum('database-backend', DatabaseBackend.Json);
-				this.ext.logger.log('Set default database backend to JSON');
+				if (entries !== null) {
+					this.ext.settings.set_enum('database-backend', DatabaseBackend.Json);
+					this.ext.logger.log('Set default database backend to JSON');
+				}
 			} else {
 				entries = await this.initSqlite(dbFile, false);
 				if (entries !== null) {
@@ -144,7 +137,12 @@ export class ClipboardEntryTracker {
 			await this._database.init();
 			return await this._database.entries();
 		} catch (e) {
-			this.ext.logger.error('Failed to load Gda');
+			this.ext.logger.error('Failed to load Gda', e);
+			// Close database connection before fallback
+			if (this._database) {
+				await this._database.close();
+				this._database = undefined;
+			}
 			this.ext.notificationManager?.warning(_('Failed to load Gda'), _('Clipboard history will be disabled'));
 
 			return null;
@@ -201,7 +199,7 @@ export class ClipboardEntryTracker {
 		metadata: Metadata | null = null,
 	): Promise<ClipboardEntry | null> {
 		const id = await this._database?.selectConflict({ type, content });
-		if (id) {
+		if (id != null) {
 			// Check if the entry is already tracked
 			const trackedEntry = this._entries.get(id);
 			if (trackedEntry) {
