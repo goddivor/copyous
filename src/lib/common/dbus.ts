@@ -88,7 +88,7 @@ export class DbusService extends GObject.Object implements DBusInterface {
 
 	private registerSignals() {
 		this.confirmedLogoutId = Gio.DBus.session.signal_subscribe(
-			null,
+			'org.gnome.SessionManager',
 			'org.gnome.SessionManager.EndSessionDialog',
 			'ConfirmedLogout',
 			'/org/gnome/SessionManager/EndSessionDialog',
@@ -98,7 +98,7 @@ export class DbusService extends GObject.Object implements DBusInterface {
 		);
 
 		this.confirmedRebootId = Gio.DBus.session.signal_subscribe(
-			null,
+			'org.gnome.SessionManager',
 			'org.gnome.SessionManager.EndSessionDialog',
 			'ConfirmedReboot',
 			'/org/gnome/SessionManager/EndSessionDialog',
@@ -108,7 +108,7 @@ export class DbusService extends GObject.Object implements DBusInterface {
 		);
 
 		this.confirmedShutdownId = Gio.DBus.session.signal_subscribe(
-			null,
+			'org.gnome.SessionManager',
 			'org.gnome.SessionManager.EndSessionDialog',
 			'ConfirmedShutdown',
 			'/org/gnome/SessionManager/EndSessionDialog',
@@ -118,13 +118,19 @@ export class DbusService extends GObject.Object implements DBusInterface {
 		);
 
 		this.prepareForShutdownId = Gio.DBus.system.signal_subscribe(
-			null,
+			'org.freedesktop.login1',
 			'org.freedesktop.login1.Manager',
 			'PrepareForShutdown',
 			'/org/freedesktop/login1',
 			null,
 			Gio.DBusSignalFlags.NONE,
-			() => this.emit('clear-history', -1),
+			(_connection, _senderName, _objectPath, _interfaceName, _signalName, parameters) => {
+				// Only clear history if system is actually shutting down (parameter is true)
+				const [shutdown] = parameters.deep_unpack() as [boolean];
+				if (shutdown) {
+					this.emit('clear-history', -1);
+				}
+			},
 		);
 	}
 
