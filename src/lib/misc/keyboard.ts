@@ -9,7 +9,7 @@ export class Keyboard {
 	private _inputMethod: Clutter.InputMethod | null = null;
 
 	constructor() {
-		const seat = Clutter.get_default_backend().get_default_seat();
+		const seat = global.stage.context.get_backend().get_default_seat();
 		this._device = seat.create_virtual_device(Clutter.InputDeviceType.KEYBOARD_DEVICE);
 
 		// `Main.inputMethod` is only set up once the shell has finished starting, so it may still be
