@@ -1,6 +1,7 @@
 import Clutter from 'gi://Clutter';
 import GObject from 'gi://GObject';
 import Gio from 'gi://Gio';
+import Pango from 'gi://Pango';
 import St from 'gi://St';
 
 import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.js';
@@ -34,8 +35,6 @@ export class StatusItem extends St.BoxLayout {
 			style_class: 'clipboard-item status-item',
 			orientation: Clutter.Orientation.VERTICAL,
 			can_focus: false,
-			width: 300,
-			height: 200,
 			x_align: Clutter.ActorAlign.CENTER,
 			y_align: Clutter.ActorAlign.CENTER,
 			x_expand: true,
@@ -73,6 +72,7 @@ export class StatusItem extends St.BoxLayout {
 			y_expand: true,
 		});
 		this._text.clutter_text.line_wrap = true;
+		this._text.clutter_text.ellipsize = Pango.EllipsizeMode.NONE;
 		box.add_child(this._text);
 
 		// Bind properties
@@ -109,8 +109,8 @@ export class StatusItem extends St.BoxLayout {
 	}
 
 	private updateSize() {
-		this.width = this.ext.settings.get_int('item-width');
-		this.height = this.ext.settings.get_int('item-height');
+		this.min_width = this.ext.settings.get_int('item-width');
+		this.min_height = this.ext.settings.get_int('item-height');
 	}
 
 	override destroy() {
