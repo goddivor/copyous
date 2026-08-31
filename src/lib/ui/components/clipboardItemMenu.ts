@@ -9,7 +9,7 @@ import * as PopupMenu from 'resource:///org/gnome/shell/ui/popupMenu.js';
 import type CopyousExtension from '../../../extension.js';
 import { ItemType, Tags } from '../../common/constants.js';
 import { registerClass } from '../../common/gjs.js';
-import { ClipboardEntry } from '../../database/database.js';
+import { ClipboardEntry, type TextMetadata } from '../../database/database.js';
 import { Shortcut } from '../../misc/shortcuts.js';
 import { ActionPopupMenuSection, ActionPopupMenuSectionSignals } from './actionMenu.js';
 import { EditDialog } from './editDialog.js';
@@ -19,6 +19,16 @@ import { TagsItem } from './tagsItem.js';
 function canEdit(entry: ClipboardEntry): boolean {
 	return entry.type === ItemType.Text || entry.type === ItemType.Code;
 }
+
+function hasHtmlContent(entry: ClipboardEntry): boolean {
+	if (entry.type !== ItemType.Text) return false;
+	const metadata = entry.metadata as TextMetadata | null;
+	return !!metadata?.htmlContent;
+}
+
+type ClipboardItemMenuSignals = ActionPopupMenuSectionSignals & {
+	'paste-with-html': [string];
+};
 
 @registerClass()
 class PopupMenuShortcutItem extends PopupMenu.PopupBaseMenuItem {
@@ -61,12 +71,13 @@ class PopupMenuShortcutItem extends PopupMenu.PopupBaseMenuItem {
 	}
 }
 
-export class ClipboardItemMenu extends PopupMenu.PopupMenu<ActionPopupMenuSectionSignals> {
+export class ClipboardItemMenu extends PopupMenu.PopupMenu<ClipboardItemMenuSignals> {
 	declare private _arrowAlignment: number;
 	private _entry: ClipboardEntry | null = null;
 
 	private readonly _tagsItem: TagsItem;
 	private readonly _editSection: PopupMenu.PopupMenuSection;
+	private readonly _pasteHtmlSection: PopupMenu.PopupMenuSection;
 	private readonly _actionMenuSection: ActionPopupMenuSection;
 
 	constructor(private ext: CopyousExtension) {
@@ -96,6 +107,23 @@ export class ClipboardItemMenu extends PopupMenu.PopupMenu<ActionPopupMenuSectio
 			if (this._entry) this.edit(this._entry);
 		});
 		this._editSection.addMenuItem(menuItem);
+
+		// Paste with formatting
+		this._pasteHtmlSection = new PopupMenu.PopupMenuSection();
+		this.addMenuItem(this._pasteHtmlSection);
+
+		const pasteHtmlItem = new PopupMenu.PopupBaseMenuItem();
+		const pasteHtmlLabel = new St.Label({ text: _('Paste with Formatting') });
+		pasteHtmlItem.add_child(pasteHtmlLabel);
+		pasteHtmlItem.connect('activate', () => {
+			if (this._entry && this._entry.type === ItemType.Text) {
+				const metadata = this._entry.metadata as TextMetadata | null;
+				if (metadata?.htmlContent) {
+					this.emit('paste-with-html', metadata.htmlContent);
+				}
+			}
+		});
+		this._pasteHtmlSection.addMenuItem(pasteHtmlItem);
 
 		// Action menu
 		this._actionMenuSection = new ActionPopupMenuSection(ext);
@@ -154,6 +182,7 @@ export class ClipboardItemMenu extends PopupMenu.PopupMenu<ActionPopupMenuSectio
 
 		this._tagsItem.tag = entry.tag;
 		this._editSection.actor.visible = canEdit(entry);
+		this._pasteHtmlSection.actor.visible = hasHtmlContent(entry);
 	}
 
 	public edit(entry: ClipboardEntry) {

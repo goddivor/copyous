@@ -148,6 +148,10 @@
 			<default>false</default>
 			<summary>Do not store copied images in the clipboard history</summary>
 		</key>
+		<key name="preserve-html-content" type="b">
+			<default>false</default>
+			<summary>Preserve HTML content from formatted text copies (e.g., Google Docs, Gmail)</summary>
+		</key>
 
 		<!-- Behavior -->
 		<key name="remember-search" type="b">

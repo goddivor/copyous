@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 05:00+0000\n"
+"POT-Creation-Date: 2026-08-31 05:10+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -354,7 +354,7 @@ msgstr ""
 #: src/lib/preferences/actions/actionSubMenuDialog.ts:80
 #: src/lib/preferences/actions/actionsGroup.ts:125
 #: src/lib/preferences/actions/actionsGroup.ts:423
-#: src/lib/ui/components/clipboardItemMenu.ts:94
+#: src/lib/ui/components/clipboardItemMenu.ts:105
 msgid "Edit"
 msgstr ""
 
@@ -1517,6 +1517,14 @@ msgstr ""
 msgid "Do not store copied images in the clipboard history"
 msgstr ""
 
+#: src/lib/preferences/general/historySettings.ts:165
+msgid "Preserve HTML Content"
+msgstr ""
+
+#: src/lib/preferences/general/historySettings.ts:166
+msgid "Store HTML formatting from sources like Google Docs and Gmail"
+msgstr ""
+
 #: src/lib/preferences/general/locationsGroup.ts:13
 msgid "Locations"
 msgstr ""
@@ -1719,47 +1727,51 @@ msgstr ""
 msgid "Disable Shortcut"
 msgstr ""
 
-#: src/lib/ui/components/contentInfo.ts:35
+#: src/lib/ui/components/clipboardItemMenu.ts:116
+msgid "Paste with Formatting"
+msgstr ""
+
+#: src/lib/ui/components/contentInfo.ts:34
 #, javascript-format
 msgid "%dh"
 msgstr ""
 
-#: src/lib/ui/components/contentInfo.ts:36
+#: src/lib/ui/components/contentInfo.ts:35
 #, javascript-format
 msgid "%dm"
 msgstr ""
 
-#: src/lib/ui/components/contentInfo.ts:37
+#: src/lib/ui/components/contentInfo.ts:36
 #, javascript-format
 msgid "%ds"
 msgstr ""
 
-#: src/lib/ui/components/contentInfo.ts:116
+#: src/lib/ui/components/contentInfo.ts:115
 #, javascript-format
 msgid "%d char"
 msgid_plural "%d chars"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/lib/ui/components/contentInfo.ts:123
+#: src/lib/ui/components/contentInfo.ts:122
 #, javascript-format
 msgid "%d word"
 msgid_plural "%d words"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/lib/ui/components/contentInfo.ts:126
+#: src/lib/ui/components/contentInfo.ts:125
 #, javascript-format
 msgid "%d line"
 msgid_plural "%d lines"
 msgstr[0] ""
 msgstr[1] ""
 
-#: src/lib/ui/components/contentInfo.ts:186
+#: src/lib/ui/components/contentInfo.ts:185
 msgid "Missing File"
 msgstr ""
 
-#: src/lib/ui/components/contentInfo.ts:198
+#: src/lib/ui/components/contentInfo.ts:197
 msgid "Error"
 msgstr ""
 

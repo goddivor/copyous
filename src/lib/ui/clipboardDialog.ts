@@ -353,6 +353,11 @@ export class ClipboardDialog extends St.Widget {
 			(_: unknown, s: string) => ext.clipboardManager?.copyText(s),
 			'paste',
 			(_: unknown, s: string) => ext.clipboardManager?.pasteText(s),
+			'paste-with-html',
+			(_: unknown, s: string) => {
+				ext.clipboardManager?.pasteHtml(s);
+				this.close();
+			},
 			this,
 		);
 
