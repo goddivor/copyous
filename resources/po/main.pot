@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: Copyous\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-08-31 05:34+0000\n"
+"POT-Creation-Date: 2026-08-31 05:49+0000\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -67,20 +67,20 @@ msgstr ""
 msgid "QR Code"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:154 src/lib/database/entryTracker.ts:174
+#: src/lib/database/entryTracker.ts:171 src/lib/database/entryTracker.ts:191
 msgid "Failed to load Gda"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:155 src/lib/database/entryTracker.ts:174
-#: src/lib/database/entryTracker.ts:190
+#: src/lib/database/entryTracker.ts:172 src/lib/database/entryTracker.ts:191
+#: src/lib/database/entryTracker.ts:208
 msgid "Clipboard history will be disabled"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:156
+#: src/lib/database/entryTracker.ts:173
 msgid "Disable Warning"
 msgstr ""
 
-#: src/lib/database/entryTracker.ts:190
+#: src/lib/database/entryTracker.ts:208
 msgid "Failed to load JSON"
 msgstr ""
 
@@ -440,156 +440,181 @@ msgstr ""
 msgid "Resetting the actions will delete all custom actions"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:25
+#: src/lib/preferences/customization/dialogCustomization.ts:26
 #: src/lib/preferences/shortcuts/dialogShortcuts.ts:17
 msgid "Dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:29
+#: src/lib/preferences/customization/dialogCustomization.ts:30
 msgid "Position"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:30
+#: src/lib/preferences/customization/dialogCustomization.ts:31
 msgid "Change the position of the clipboard dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:35
+#: src/lib/preferences/customization/dialogCustomization.ts:36
 msgid "Show at Pointer"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:36
+#: src/lib/preferences/customization/dialogCustomization.ts:37
 msgid "Show the clipboard dialog at the pointer position"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:42
+#: src/lib/preferences/customization/dialogCustomization.ts:43
 msgid "Show at Text Cursor"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:44
+#: src/lib/preferences/customization/dialogCustomization.ts:45
 msgid ""
 "Show the clipboard dialog at the text cursor position whenever possible, "
 "otherwise at the pointer position"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:50
+#: src/lib/preferences/customization/dialogCustomization.ts:51
 msgid "Orientation"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:51
+#: src/lib/preferences/customization/dialogCustomization.ts:52
 msgid "Select the orientation of the clipboard dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:52
+#: src/lib/preferences/customization/dialogCustomization.ts:53
 #: src/lib/preferences/customization/items/linkItemCustomization.ts:92
 msgid "Horizontal"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:52
+#: src/lib/preferences/customization/dialogCustomization.ts:53
 #: src/lib/preferences/customization/items/linkItemCustomization.ts:92
 msgid "Vertical"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:57
-#: src/lib/preferences/customization/dialogCustomization.ts:101
+#: src/lib/preferences/customization/dialogCustomization.ts:58
+#: src/lib/preferences/customization/dialogCustomization.ts:124
 msgid "Bottom"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:57
-#: src/lib/preferences/customization/dialogCustomization.ts:66
+#: src/lib/preferences/customization/dialogCustomization.ts:58
+#: src/lib/preferences/customization/dialogCustomization.ts:67
 msgid "Center"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:57
-#: src/lib/preferences/customization/dialogCustomization.ts:66
-#: src/lib/preferences/customization/dialogCustomization.ts:188
-#: src/lib/preferences/customization/dialogCustomization.ts:192
+#: src/lib/preferences/customization/dialogCustomization.ts:58
+#: src/lib/preferences/customization/dialogCustomization.ts:67
+#: src/lib/preferences/customization/dialogCustomization.ts:217
+#: src/lib/preferences/customization/dialogCustomization.ts:221
 msgid "Fill"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:57
-#: src/lib/preferences/customization/dialogCustomization.ts:87
+#: src/lib/preferences/customization/dialogCustomization.ts:58
+#: src/lib/preferences/customization/dialogCustomization.ts:110
 msgid "Top"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:59
+#: src/lib/preferences/customization/dialogCustomization.ts:60
 msgid "Vertical Position"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:60
+#: src/lib/preferences/customization/dialogCustomization.ts:61
 msgid "Select the vertical position of the clipboard dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:66
-#: src/lib/preferences/customization/dialogCustomization.ts:108
+#: src/lib/preferences/customization/dialogCustomization.ts:67
+#: src/lib/preferences/customization/dialogCustomization.ts:131
 msgid "Left"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:66
-#: src/lib/preferences/customization/dialogCustomization.ts:94
+#: src/lib/preferences/customization/dialogCustomization.ts:67
+#: src/lib/preferences/customization/dialogCustomization.ts:117
 msgid "Right"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:68
+#: src/lib/preferences/customization/dialogCustomization.ts:69
 msgid "Horizontal Position"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:69
+#: src/lib/preferences/customization/dialogCustomization.ts:70
 msgid "Select the horizontal position of the clipboard dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:81
+#: src/lib/preferences/customization/dialogCustomization.ts:82
+msgid "Grid"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:83
+msgid "Wrap the items onto several lines and scroll perpendicular to them"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:90
+msgid "Items per Line"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:91
+msgid ""
+"Number of items on a line of the grid, which also sets the size of the dialog"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:97
+msgid "Visible Lines"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:98
+msgid "Number of lines shown at once, the remaining lines are scrolled to"
+msgstr ""
+
+#: src/lib/preferences/customization/dialogCustomization.ts:104
 msgid "Margins"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:82
+#: src/lib/preferences/customization/dialogCustomization.ts:105
 msgid "Change the distance of the dialog from the screen edges"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:88
+#: src/lib/preferences/customization/dialogCustomization.ts:111
 msgid "Distance from the top of the screen"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:95
+#: src/lib/preferences/customization/dialogCustomization.ts:118
 msgid "Distance from the right of the screen"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:102
+#: src/lib/preferences/customization/dialogCustomization.ts:125
 msgid "Distance from the bottom of the screen"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:109
+#: src/lib/preferences/customization/dialogCustomization.ts:132
 msgid "Distance from the left of the screen"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:115
+#: src/lib/preferences/customization/dialogCustomization.ts:138
 msgid "Auto Hide Search"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:116
+#: src/lib/preferences/customization/dialogCustomization.ts:139
 msgid "Automatically hide the search bar when not focused"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:121
+#: src/lib/preferences/customization/dialogCustomization.ts:144
 msgid "Show Scrollbar"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:122
+#: src/lib/preferences/customization/dialogCustomization.ts:145
 msgid "Show a scrollbar when items overflow"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:206
+#: src/lib/preferences/customization/dialogCustomization.ts:235
 msgid "Width"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:207
+#: src/lib/preferences/customization/dialogCustomization.ts:236
 msgid "Change the width of the clipboard dialog"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:209
+#: src/lib/preferences/customization/dialogCustomization.ts:238
 msgid "Height"
 msgstr ""
 
-#: src/lib/preferences/customization/dialogCustomization.ts:210
+#: src/lib/preferences/customization/dialogCustomization.ts:239
 msgid "Change the height of the clipboard dialog"
 msgstr ""
 
@@ -1950,7 +1975,7 @@ msgstr ""
 msgid "Colo__r"
 msgstr ""
 
-#: src/lib/ui/searchEntry.ts:276
+#: src/lib/ui/searchEntry.ts:282
 msgid "Type to search"
 msgstr ""
 
