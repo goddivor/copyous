@@ -45,12 +45,17 @@ class ScrollShortcutRow extends Adw.ActionRow {
 
 @registerClass()
 export class SearchShortcuts extends Adw.PreferencesGroup {
-	constructor() {
+	constructor(prefs: Preferences) {
 		super({ title: _('Search') });
 
-		this.add(new ShortcutRow(_('Toggle Pinned Search'), '<Alt>'));
+		const togglePinnedSearchRow = new ShortcutRow(_('Toggle Pinned Search'), '<Alt>', true);
+		this.add(togglePinnedSearchRow);
 		this.add(new ShortcutRow(_('Clear Item Tag/Type'), 'Back'));
 		this.add(new ShortcutRow(_('Activate First Item'), 'Return'));
+
+		// Bind properties
+		const settings: CopyousSettings = prefs.getSettings();
+		settings.bind('toggle-pinned-search-shortcut', togglePinnedSearchRow, 'shortcuts', null);
 	}
 }
 
@@ -72,11 +77,14 @@ export class SearchScrollShortcuts extends Adw.PreferencesGroup {
 	constructor(prefs: Preferences) {
 		super();
 
+		const settings: CopyousSettings = prefs.getSettings();
+
 		const swapScrollRow = new Adw.SwitchRow({
 			title: _('Swap Scroll Shortcut'),
 			subtitle: _('Swaps scroll shortcuts of cycling item types and item tags'),
 		});
 		this.add(swapScrollRow);
+		settings.bind('swap-scroll-shortcut', swapScrollRow, 'active', null);
 
 		const cycleItemTypeRow = new ScrollShortcutRow(_('Cycle Item Type'), swapScrollRow.active);
 		this.add(cycleItemTypeRow);
@@ -86,8 +94,5 @@ export class SearchScrollShortcuts extends Adw.PreferencesGroup {
 		// Bind properties
 		swapScrollRow.bind_property('active', cycleItemTypeRow, 'show-ctrl', GObject.BindingFlags.DEFAULT);
 		swapScrollRow.bind_property('active', cycleItemTagRow, 'show-ctrl', GObject.BindingFlags.INVERT_BOOLEAN);
-
-		const settings: CopyousSettings = prefs.getSettings();
-		settings.bind('swap-scroll-shortcut', swapScrollRow, 'active', null);
 	}
 }

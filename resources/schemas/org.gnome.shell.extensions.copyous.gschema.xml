@@ -409,6 +409,36 @@
 			<default>false</default>
 			<summary>Swaps scroll shortcuts of cycling item types and item tags</summary>
 		</key>
+
+		<key name="toggle-pinned-search-shortcut" type="as">
+			<default>['&lt;Alt&gt;']</default>
+			<summary>Shortcut to toggle the pinned search filter</summary>
+		</key>
+
+		<key name="cycle-item-type-scroll-modifier" type="s">
+			<default>'&lt;Control&gt;'</default>
+			<summary>Modifier key for cycling item types with scroll wheel</summary>
+		</key>
+
+		<key name="cycle-item-tag-scroll-modifier" type="s">
+			<default>''</default>
+			<summary>Modifier key for cycling item tags with scroll wheel</summary>
+		</key>
+
+		<key name="select-next-item-shortcut" type="as">
+			<default>[]</default>
+			<summary>Shortcut to select the next item without opening the dialog</summary>
+		</key>
+
+		<key name="select-previous-item-shortcut" type="as">
+			<default>[]</default>
+			<summary>Shortcut to select the previous item without opening the dialog</summary>
+		</key>
+
+		<key name="show-selected-item-notification" type="b">
+			<default>false</default>
+			<summary>Show a notification when cycling items with shortcuts</summary>
+		</key>
 	</schema>
 
 	<schema id="org.gnome.shell.extensions.copyous.text-item" path="/org/gnome/shell/extensions/copyous/text-item/">

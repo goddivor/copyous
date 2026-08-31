@@ -21,6 +21,10 @@ export const Shortcut = {
 	Edit: 'edit-item-shortcut',
 	EditTitle: 'edit-title-shortcut',
 	Menu: 'open-menu-shortcut',
+
+	TogglePinnedSearch: 'toggle-pinned-search-shortcut',
+	SelectNextItem: 'select-next-item-shortcut',
+	SelectPreviousItem: 'select-previous-item-shortcut',
 } as const;
 
 export type Shortcut = (typeof Shortcut)[keyof typeof Shortcut];
@@ -56,6 +60,8 @@ class ShortcutBinding extends GObject.Object {
 	Signals: {
 		'open-clipboard-dialog': {},
 		'toggle-incognito-mode': {},
+		'select-next-item': {},
+		'select-previous-item': {},
 	},
 })
 export class ShortcutManager extends GObject.Object {
@@ -76,12 +82,15 @@ export class ShortcutManager extends GObject.Object {
 
 		this.registerGlobalShortcut(Shortcut.Open, 'open-clipboard-dialog');
 		this.registerGlobalShortcut(Shortcut.Incognito, 'toggle-incognito-mode');
+		this.registerGlobalShortcut(Shortcut.SelectNextItem, 'select-next-item');
+		this.registerGlobalShortcut(Shortcut.SelectPreviousItem, 'select-previous-item');
 
 		this.registerShortcut(Shortcut.Pin);
 		this.registerShortcut(Shortcut.Delete);
 		this.registerShortcut(Shortcut.Edit);
 		this.registerShortcut(Shortcut.EditTitle);
 		this.registerShortcut(Shortcut.Menu);
+		this.registerShortcut(Shortcut.TogglePinnedSearch);
 
 		this._actor = actor;
 		actor.connectObject(
@@ -194,6 +203,8 @@ export class ShortcutManager extends GObject.Object {
 	public destroy(): void {
 		this.unregisterGlobalShortcut(Shortcut.Open);
 		this.unregisterGlobalShortcut(Shortcut.Incognito);
+		this.unregisterGlobalShortcut(Shortcut.SelectNextItem);
+		this.unregisterGlobalShortcut(Shortcut.SelectPreviousItem);
 
 		this._shortcuts = {};
 		this._actor?.disconnectObject(this);

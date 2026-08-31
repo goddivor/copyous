@@ -123,6 +123,13 @@ export const Settings = {
 	PasteMethod: 'paste-method',
 	SwapCopyShortcut: 'swap-copy-shortcut',
 	SwapScrollShortcut: 'swap-scroll-shortcut',
+
+	TogglePinnedSearchShortcut: 'toggle-pinned-search-shortcut',
+	CycleItemTypeScrollModifier: 'cycle-item-type-scroll-modifier',
+	CycleItemTagScrollModifier: 'cycle-item-tag-scroll-modifier',
+	SelectNextItemShortcut: 'select-next-item-shortcut',
+	SelectPreviousItemShortcut: 'select-previous-item-shortcut',
+	ShowSelectedItemNotification: 'show-selected-item-notification',
 } as const;
 
 export const ChildKeys = {
@@ -210,6 +217,13 @@ export const SettingsTypes = {
 	[Settings.PasteMethod]: 'enum',
 	[Settings.SwapCopyShortcut]: 'boolean',
 	[Settings.SwapScrollShortcut]: 'boolean',
+
+	[Settings.TogglePinnedSearchShortcut]: 'strv',
+	[Settings.CycleItemTypeScrollModifier]: 'string',
+	[Settings.CycleItemTagScrollModifier]: 'string',
+	[Settings.SelectNextItemShortcut]: 'strv',
+	[Settings.SelectPreviousItemShortcut]: 'strv',
+	[Settings.ShowSelectedItemNotification]: 'boolean',
 
 	[ChildKeys.TextItem]: {
 		[Settings.TextItem.ShowTextInfo]: 'boolean',

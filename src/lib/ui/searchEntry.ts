@@ -13,6 +13,7 @@ import { ItemType, ItemTypes, Tag, Tags } from '../common/constants.js';
 import { enumParamSpec, registerClass } from '../common/gjs.js';
 import { Icon, loadIcon } from '../common/icons.js';
 import { ClipboardEntry } from '../database/database.js';
+import { Shortcut } from '../misc/shortcuts.js';
 import { TagsItem } from './components/tagsItem.js';
 
 const SearchCollator = new Intl.Collator(undefined, { sensitivity: 'base' });
@@ -526,8 +527,10 @@ export class SearchEntry extends St.Entry {
 			return Clutter.EVENT_STOP;
 		}
 
-		// Toggle pin: alt
-		if (key === Clutter.KEY_Alt_L || key === Clutter.KEY_Alt_R || key === Clutter.KEY_ISO_Level3_Shift) {
+		// Toggle pin
+		if (
+			this.ext.shortcutsManager?.getShortcutForKeyBinding(key, event.get_state()) === Shortcut.TogglePinnedSearch
+		) {
 			this.pinned = !this.pinned;
 			return Clutter.EVENT_STOP;
 		}
@@ -577,22 +580,46 @@ export class SearchEntry extends St.Entry {
 
 	override vfunc_scroll_event(event: Clutter.Event): boolean {
 		const direction = event.get_scroll_direction();
-		const swap = this.ext.settings.get_boolean('swap-scroll-shortcut');
+		const typeModifier = this.ext.settings.get_string('cycle-item-type-scroll-modifier');
+		const tagModifier = this.ext.settings.get_string('cycle-item-tag-scroll-modifier');
+
+		// Check if the event matches the configured modifiers
+		const state = event.get_state();
+		const typeMatch = this.modifierMatches(state, typeModifier);
+		const tagMatch = this.modifierMatches(state, tagModifier);
+
 		if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT) {
-			if (event.has_control_modifier() !== swap) {
-				this.prevTag();
-			} else {
+			if (typeMatch) {
 				this.prevType();
+			} else if (tagMatch) {
+				this.prevTag();
 			}
 		} else if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT) {
-			if (event.has_control_modifier() !== swap) {
-				this.nextTag();
-			} else {
+			if (typeMatch) {
 				this.nextType();
+			} else if (tagMatch) {
+				this.nextTag();
 			}
 		}
 
 		return Clutter.EVENT_PROPAGATE;
+	}
+
+	private modifierMatches(state: Clutter.ModifierType, modifier: string): boolean {
+		// Support legacy 'swap-scroll-shortcut' setting for backward compatibility
+		if (this.ext.settings.get_boolean('swap-scroll-shortcut')) {
+			// With swap enabled: tag uses Ctrl, type uses no modifier
+			return (
+				(modifier === '<Control>' && (state & Clutter.ModifierType.CONTROL_MASK) !== 0) ||
+				(modifier === '' && (state & Clutter.ModifierType.CONTROL_MASK) === 0)
+			);
+		}
+
+		// Without swap (default): type uses Ctrl, tag uses no modifier
+		return (
+			(modifier === '<Control>' && (state & Clutter.ModifierType.CONTROL_MASK) !== 0) ||
+			(modifier === '' && (state & Clutter.ModifierType.CONTROL_MASK) === 0)
+		);
 	}
 
 	override vfunc_unmap(): void {
