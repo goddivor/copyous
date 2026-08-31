@@ -5,10 +5,13 @@ import Gio from 'gi://Gio';
 import Meta from 'gi://Meta';
 import St from 'gi://St';
 
+import * as Main from 'resource:///org/gnome/shell/ui/main.js';
+
 import type CopyousExtension from '../../extension.js';
 import { Color } from '../common/color.js';
 import { ItemType, getImagesPath } from '../common/constants.js';
 import { registerClass } from '../common/gjs.js';
+import { PasteMethod } from '../common/settings.js';
 import { ClipboardEntry, FileOperation, Metadata } from '../database/database.js';
 import { ClipboardEntryTracker } from '../database/entryTracker.js';
 import { Keyboard } from './keyboard.js';
@@ -55,6 +58,47 @@ function contentChecksum(content: ClipboardContent): string | null {
 	}
 }
 
+// Terminals that need Ctrl+Shift+V because Ctrl+V is not a paste binding for them. Electron based
+// terminals (VS Code, Cursor, Warp) are deliberately absent: they do bind Ctrl+V, and they never
+// report InputContentPurpose.TERMINAL either, so the plain binding is the right one for them.
+const TerminalWmClasses = new Set([
+	'alacritty',
+	'blackbox',
+	'contour',
+	'deepin-terminal',
+	'foot',
+	'footclient',
+	'ghostty',
+	'gnome-terminal-server',
+	'guake',
+	'kgx',
+	'kitty',
+	'konsole',
+	'lxterminal',
+	'mate-terminal',
+	'org.gnome.blackbox',
+	'org.gnome.console',
+	'org.gnome.terminal',
+	'org.wezfurlong.wezterm',
+	'qterminal',
+	'rio',
+	'sakura',
+	'st',
+	'terminator',
+	'terminology',
+	'tilix',
+	'urxvt',
+	'wezterm',
+	'xfce4-terminal',
+	'xterm',
+	'yakuake',
+]);
+
+function focusedWindowIsTerminal(): boolean {
+	const wmClass = global.display.focus_window?.get_wm_class()?.toLowerCase();
+	return wmClass !== undefined && TerminalWmClasses.has(wmClass);
+}
+
 function hasMoreGraphemes(text: string, max: number): boolean {
 	const iterator = GraphemeSegmenter.segment(text)[Symbol.iterator]();
 	for (let i = 0; i < max; i++) iterator.next();
@@ -82,6 +126,7 @@ export class ClipboardManager extends GObject.Object {
 	private pasteSignalId: number = -1;
 
 	private prevClipboard: [ContentType, string] | null = null;
+	private targetIsTerminal: boolean | null = null;
 
 	constructor(
 		private ext: CopyousExtension,
@@ -103,6 +148,29 @@ export class ClipboardManager extends GObject.Object {
 		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
 		this.signalId = -1;
 		this.pasteSignalId = -1;
+	}
+
+	/**
+	 * Remember whether the window that is about to lose focus is a terminal.
+	 *
+	 * Opening the clipboard dialog pushes a modal and moves the keyboard focus to the search entry,
+	 * which resets the input method's content purpose to NORMAL. By the time the paste is synthesized
+	 * the original purpose is gone, so it is captured here before the modal is pushed.
+	 */
+	public saveTargetIsTerminal() {
+		const inputMethod = (Main.inputMethod ?? null) as Clutter.InputMethod | null;
+		const purpose = inputMethod?.content_purpose ?? this.keyboard?.purpose;
+
+		this.targetIsTerminal = purpose === Clutter.InputContentPurpose.TERMINAL || focusedWindowIsTerminal();
+	}
+
+	/** Go back to reading the live content purpose. */
+	public clearTargetIsTerminal() {
+		this.targetIsTerminal = null;
+	}
+
+	private isTerminal(keyboard: Keyboard): boolean {
+		return this.targetIsTerminal ?? keyboard.purpose === Clutter.InputContentPurpose.TERMINAL;
 	}
 
 	public copyContent(content: ClipboardContent) {
@@ -137,6 +205,13 @@ export class ClipboardManager extends GObject.Object {
 	public pasteContent(content: ClipboardContent) {
 		this.copyContent(content);
 
+		const pasteMethod = this.ext.settings.get_enum('paste-method');
+
+		// If paste method is disabled, don't synthesize any keys
+		if (pasteMethod === PasteMethod.Disabled) {
+			return;
+		}
+
 		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
 		this.pasteSignalId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
 			// Creating the virtual input device crashes gnome-shell when it happens while the shell is
@@ -144,19 +219,38 @@ export class ClipboardManager extends GObject.Object {
 			this.keyboard ??= new Keyboard();
 			const keyboard = this.keyboard;
 
-			// https://github.com/Tudmotu/gnome-shell-extension-clipboard-indicator/blob/89c57703641a9d5d15f899f6e780174641911d95/extension.js#L1094
-			if (keyboard.purpose === Clutter.InputContentPurpose.TERMINAL) {
-				keyboard.press(Clutter.KEY_Control_L);
-				keyboard.press(Clutter.KEY_Shift_L);
-				keyboard.press(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Shift_L);
-				keyboard.release(Clutter.KEY_Control_L);
-			} else {
-				keyboard.press(Clutter.KEY_Shift_L);
-				keyboard.press(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Shift_L);
+			if (pasteMethod === PasteMethod.CtrlV) {
+				// Use Ctrl+V (default) - works with Electron terminals, Alacritty, Ghostty
+				// Ctrl+Shift+V in terminal mode for applications that need it
+				if (this.isTerminal(keyboard)) {
+					keyboard.press(Clutter.KEY_Control_L);
+					keyboard.press(Clutter.KEY_Shift_R);
+					keyboard.press(Clutter.KEY_v);
+					keyboard.release(Clutter.KEY_v);
+					keyboard.release(Clutter.KEY_Shift_R);
+					keyboard.release(Clutter.KEY_Control_L);
+				} else {
+					keyboard.press(Clutter.KEY_Control_L);
+					keyboard.press(Clutter.KEY_v);
+					keyboard.release(Clutter.KEY_v);
+					keyboard.release(Clutter.KEY_Control_L);
+				}
+			} else if (pasteMethod === PasteMethod.ShiftInsert) {
+				// Use Shift+Insert (legacy behavior)
+				// Ctrl+Shift+Insert in terminal mode
+				if (this.isTerminal(keyboard)) {
+					keyboard.press(Clutter.KEY_Control_L);
+					keyboard.press(Clutter.KEY_Shift_R);
+					keyboard.press(Clutter.KEY_Insert);
+					keyboard.release(Clutter.KEY_Insert);
+					keyboard.release(Clutter.KEY_Shift_R);
+					keyboard.release(Clutter.KEY_Control_L);
+				} else {
+					keyboard.press(Clutter.KEY_Shift_L);
+					keyboard.press(Clutter.KEY_Insert);
+					keyboard.release(Clutter.KEY_Insert);
+					keyboard.release(Clutter.KEY_Shift_L);
+				}
 			}
 
 			this.pasteSignalId = -1;

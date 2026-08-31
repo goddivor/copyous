@@ -116,6 +116,7 @@ export const Settings = {
 	OpenMenuShortcut: 'open-menu-shortcut',
 
 	MiddleClickAction: 'middle-click-action',
+	PasteMethod: 'paste-method',
 	SwapCopyShortcut: 'swap-copy-shortcut',
 	SwapScrollShortcut: 'swap-scroll-shortcut',
 } as const;
@@ -198,6 +199,7 @@ export const SettingsTypes = {
 	[Settings.OpenMenuShortcut]: 'strv',
 
 	[Settings.MiddleClickAction]: 'enum',
+	[Settings.PasteMethod]: 'enum',
 	[Settings.SwapCopyShortcut]: 'boolean',
 	[Settings.SwapScrollShortcut]: 'boolean',
 
@@ -370,6 +372,14 @@ export const MiddleClickAction = {
 
 export type MiddleClickAction = (typeof MiddleClickAction)[keyof typeof MiddleClickAction];
 
+export const PasteMethod = {
+	CtrlV: 0,
+	ShiftInsert: 1,
+	Disabled: 2,
+} as const;
+
+export type PasteMethod = (typeof PasteMethod)[keyof typeof PasteMethod];
+
 export const IndicatorDisplay = {
 	Hidden: 0,
 	IconOnly: 1,
@@ -388,6 +398,7 @@ type SettingsEnumTypes = {
 	[Settings.ClipboardPositionHorizontal]: Position;
 	[Settings.HeaderControlsVisibility]: HeaderControlsVisibility;
 	[Settings.MiddleClickAction]: MiddleClickAction;
+	[Settings.PasteMethod]: PasteMethod;
 	[Settings.OpenClipboardDialogBehavior]: OpenClipboardDialogBehavior;
 
 	[ChildKeys.TextItem]: {

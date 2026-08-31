@@ -425,6 +425,10 @@ export class ClipboardDialog extends St.Widget {
 		this._updateCursor = false;
 		this._nextCursor = this._cursor;
 
+		// Capture whether the window losing focus is a terminal, before the modal resets the input
+		// method's content purpose.
+		this.ext.clipboardManager?.saveTargetIsTerminal();
+
 		const grab = Main.pushModal(this, { actionMode: Shell.ActionMode.SYSTEM_MODAL }) as Clutter.Grab;
 		// GNOME 50 (Mutter 18) removed get_seat_state()/GrabState in favor of is_revoked()
 		const grabFailed =
@@ -531,6 +535,7 @@ export class ClipboardDialog extends St.Widget {
 				this._closing = false;
 				this.hide();
 				global.compositor.enable_unredirect();
+				this.ext.clipboardManager?.clearTargetIsTerminal();
 			},
 		});
 	}

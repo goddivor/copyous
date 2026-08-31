@@ -1,4 +1,5 @@
 import Clutter from 'gi://Clutter';
+import GLib from 'gi://GLib';
 
 import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 
@@ -40,7 +41,9 @@ export class Keyboard {
 	}
 
 	private notify(keyval: number, state: Clutter.KeyState) {
-		this._device?.notify_keyval(Clutter.get_current_event_time() * 1000, keyval, state);
+		// The event time is in microseconds. `Clutter.get_current_event_time()` returns 0 outside of
+		// event handling, and the keys are synthesized from a GLib timeout, so use the monotonic clock.
+		this._device?.notify_keyval(GLib.get_monotonic_time(), keyval, state);
 	}
 
 	press(keyval: number) {

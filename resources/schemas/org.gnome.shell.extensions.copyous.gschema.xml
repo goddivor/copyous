@@ -63,6 +63,12 @@
 		<value nick="delete" value="2"/>
 	</enum>
 
+	<enum id="org.gnome.shell.extensions.copyous.PasteMethod">
+		<value nick="ctrl-v" value="0"/>
+		<value nick="shift-insert" value="1"/>
+		<value nick="disabled" value="2"/>
+	</enum>
+
 	<enum id="org.gnome.shell.extensions.copyous.IndicatorDisplay">
 		<value nick="hidden" value="0"/>
 		<value nick="icon-only" value="1"/>
@@ -370,6 +376,11 @@
 		<key name="middle-click-action" enum="org.gnome.shell.extensions.copyous.MiddleClickAction">
 			<default>'pin'</default>
 			<summary>Action to perform when the middle mouse button is clicked</summary>
+		</key>
+
+		<key name="paste-method" enum="org.gnome.shell.extensions.copyous.PasteMethod">
+			<default>'ctrl-v'</default>
+			<summary>Method used to synthesize keystrokes when auto-pasting clipboard items</summary>
 		</key>
 
 		<key name="swap-copy-shortcut" type="b">

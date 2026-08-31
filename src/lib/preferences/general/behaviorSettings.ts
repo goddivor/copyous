@@ -1,11 +1,12 @@
 import Adw from 'gi://Adw';
 import Gio from 'gi://Gio';
+import Gtk from 'gi://Gtk';
 
 import { gettext as _ } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
 
 import Preferences from '../../../prefs.js';
 import { registerClass } from '../../common/gjs.js';
-import { CopyousSettings } from '../../common/settings.js';
+import { CopyousSettings, bind_enum } from '../../common/settings.js';
 
 @registerClass()
 export class BehaviorSettings extends Adw.PreferencesGroup {
@@ -56,6 +57,13 @@ export class BehaviorSettings extends Adw.PreferencesGroup {
 		});
 		this.add(updateDateOnCopy);
 
+		const pasteMethod = new Adw.ComboRow({
+			title: _('Auto-Paste Method'),
+			subtitle: _('Keys sent to paste the selected item into the focused application'),
+			model: Gtk.StringList.new([_('Ctrl+V'), _('Shift+Insert'), _('Disabled')]),
+		});
+		this.add(pasteMethod);
+
 		// Bind properties
 		const settings: CopyousSettings = prefs.getSettings();
 		settings.bind('remember-search', rememberSearch, 'active', Gio.SettingsBindFlags.DEFAULT);
@@ -65,5 +73,6 @@ export class BehaviorSettings extends Adw.PreferencesGroup {
 		settings.bind('protect-tagged', protectTagged, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('sync-primary', syncPrimary, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('update-date-on-copy', updateDateOnCopy, 'active', Gio.SettingsBindFlags.DEFAULT);
+		bind_enum(settings, 'paste-method', pasteMethod, 'selected');
 	}
 }
