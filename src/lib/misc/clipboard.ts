@@ -11,7 +11,7 @@ import type CopyousExtension from '../../extension.js';
 import { Color } from '../common/color.js';
 import { ItemType, getImagesPath } from '../common/constants.js';
 import { registerClass } from '../common/gjs.js';
-import { PasteMethod } from '../common/settings.js';
+import { CharacterItemSettings, PasteMethod, getChildSettings } from '../common/settings.js';
 import { ClipboardEntry, FileOperation, Metadata } from '../database/database.js';
 import { ClipboardEntryTracker } from '../database/entryTracker.js';
 import { Keyboard } from './keyboard.js';
@@ -129,6 +129,18 @@ export class ClipboardManager extends GObject.Object {
 	private prevClipboard: [ContentType, string] | null = null;
 	private targetIsTerminal: boolean | null = null;
 
+	// Every one of these was read from GSettings on each copy, on a path that runs for every single
+	// clipboard change in the session. They are cached here and refreshed from `changed::` instead:
+	// the value is the same, it is just not looked up through the DConf machinery any more.
+	private readonly characterItemSettings: CharacterItemSettings;
+	private syncPrimary: boolean;
+	private updateDateOnCopy: boolean;
+	private incognito: boolean;
+	private ignoreImages: boolean;
+	private preserveHtmlContent: boolean;
+	private wmclassExclusions: Set<string>;
+	private maxCharacters: number;
+
 	constructor(
 		private ext: CopyousExtension,
 		private tracker: ClipboardEntryTracker,
@@ -138,12 +150,48 @@ export class ClipboardManager extends GObject.Object {
 		this.selection = global.display.get_selection();
 		this.clipboard = St.Clipboard.get_default();
 
+		const settings = ext.settings;
+		this.characterItemSettings = getChildSettings(settings, 'character-item');
+
+		this.syncPrimary = settings.get_boolean('sync-primary');
+		this.updateDateOnCopy = settings.get_boolean('update-date-on-copy');
+		this.incognito = settings.get_boolean('incognito');
+		this.ignoreImages = settings.get_boolean('ignore-images');
+		this.preserveHtmlContent = settings.get_boolean('preserve-html-content');
+		this.wmclassExclusions = new Set(settings.get_strv('wmclass-exclusions'));
+		this.maxCharacters = this.characterItemSettings.get_int('max-characters');
+
+		settings.connectObject(
+			'changed::sync-primary',
+			() => (this.syncPrimary = settings.get_boolean('sync-primary')),
+			'changed::update-date-on-copy',
+			() => (this.updateDateOnCopy = settings.get_boolean('update-date-on-copy')),
+			'changed::incognito',
+			() => (this.incognito = settings.get_boolean('incognito')),
+			'changed::ignore-images',
+			() => (this.ignoreImages = settings.get_boolean('ignore-images')),
+			'changed::preserve-html-content',
+			() => (this.preserveHtmlContent = settings.get_boolean('preserve-html-content')),
+			'changed::wmclass-exclusions',
+			() => (this.wmclassExclusions = new Set(settings.get_strv('wmclass-exclusions'))),
+			this,
+		);
+
+		this.characterItemSettings.connectObject(
+			'changed::max-characters',
+			() => (this.maxCharacters = this.characterItemSettings.get_int('max-characters')),
+			this,
+		);
+
 		this.signalId = this.selection.connect('owner-changed', this.ownerChanged.bind(this));
 	}
 
 	public destroy() {
 		this.keyboard?.destroy();
 		this.keyboard = undefined;
+
+		this.ext.settings?.disconnectObject(this);
+		this.characterItemSettings.disconnectObject(this);
 
 		if (this.signalId >= 0) this.selection.disconnect(this.signalId);
 		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
@@ -182,7 +230,7 @@ export class ClipboardManager extends GObject.Object {
 		// Text
 		if (content.type === ContentType.Text) {
 			this.clipboard.set_text(St.ClipboardType.CLIPBOARD, content.text);
-			if (this.ext.settings.get_boolean('sync-primary')) {
+			if (this.syncPrimary) {
 				this.clipboard.set_text(St.ClipboardType.PRIMARY, content.text);
 			}
 			return;
@@ -303,7 +351,7 @@ export class ClipboardManager extends GObject.Object {
 	private async handleEntry(entry: ClipboardEntry, paste: boolean) {
 		const fn = paste ? this.pasteContent.bind(this) : this.copyContent.bind(this);
 
-		if (this.ext.settings.get_boolean('update-date-on-copy')) {
+		if (this.updateDateOnCopy) {
 			entry.datetime = GLib.DateTime.new_now_utc();
 		}
 
@@ -345,12 +393,9 @@ export class ClipboardManager extends GObject.Object {
 
 		// WM Class
 		const window = global.display.focus_window;
-		if (window) {
-			const exclusions = this.ext.settings.get_strv('wmclass-exclusions');
-			if (exclusions.includes(window.wm_class)) return false;
-		}
+		if (window && this.wmclassExclusions.has(window.wm_class)) return false;
 
-		return !this.ext.settings.get_boolean('incognito');
+		return !this.incognito;
 	}
 
 	private async ownerChanged(
@@ -422,7 +467,7 @@ export class ClipboardManager extends GObject.Object {
 		// Image
 		// Reading the bytes is what makes an image copy expensive, so the check happens before it and
 		// falls through to the other targets, which keeps the plain text of a mixed selection.
-		const imageMimeType = this.ext.settings.get_boolean('ignore-images')
+		const imageMimeType = this.ignoreImages
 			? undefined
 			: MimeTypes.Image.find((value) => mimeTypes.includes(value));
 		if (imageMimeType) {
@@ -465,7 +510,7 @@ export class ClipboardManager extends GObject.Object {
 			if (text && text.trim()) {
 				// Try to read HTML if available
 				let html: string | undefined;
-				if (this.ext.settings.get_boolean('preserve-html-content')) {
+				if (this.preserveHtmlContent) {
 					const htmlMimeType = MimeTypes.Html.find((value) => mimeTypes.includes(value));
 					if (htmlMimeType) {
 						try {
@@ -504,8 +549,7 @@ export class ClipboardManager extends GObject.Object {
 			}
 
 			// Character
-			const maxCharacters = this.ext.settings.get_child('character-item').get_int('max-characters');
-			if (!hasMoreGraphemes(trimmed, maxCharacters)) {
+			if (!hasMoreGraphemes(trimmed, this.maxCharacters)) {
 				return [ItemType.Character, content.text, null];
 			}
 

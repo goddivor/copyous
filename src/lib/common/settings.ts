@@ -581,6 +581,45 @@ export interface CopyousSettings extends TypedSettings<typeof SettingsTypes, Set
 	get_child(name: typeof ChildKeys.Theme): ThemeSettings;
 }
 
+export type ChildKey = (typeof ChildKeys)[keyof typeof ChildKeys];
+
+/**
+ * Child settings objects, memoized per parent.
+ *
+ * `Gio.Settings.get_child()` builds a brand new `Gio.Settings` on every call - with its own DConf
+ * watch - and GLib memoizes nothing, so a hot path that only wants a single integer would otherwise
+ * allocate a full settings object per call. The cache is keyed on the parent settings object and
+ * held weakly, so it dies with it: `disable()` drops the extension's settings and the children go
+ * with them, and the next `enable()` starts from an empty cache.
+ */
+const childSettingsCache = new WeakMap<CopyousSettings, Map<ChildKey, unknown>>();
+
+type ChildSettings = {
+	[ChildKeys.TextItem]: TextItemSettings;
+	[ChildKeys.CodeItem]: CodeItemSettings;
+	[ChildKeys.ImageItem]: ImageItemSettings;
+	[ChildKeys.FileItem]: FileItemSettings;
+	[ChildKeys.LinkItem]: LinkItemSettings;
+	[ChildKeys.CharacterItem]: CharacterItemSettings;
+	[ChildKeys.Theme]: ThemeSettings;
+};
+
+export function getChildSettings<K extends ChildKey>(settings: CopyousSettings, name: K): ChildSettings[K] {
+	let children = childSettingsCache.get(settings);
+	if (!children) {
+		children = new Map<ChildKey, unknown>();
+		childSettingsCache.set(settings, children);
+	}
+
+	let child = children.get(name);
+	if (child === undefined) {
+		child = settings.get_child(name as typeof ChildKeys.TextItem);
+		children.set(name, child);
+	}
+
+	return child as ChildSettings[K];
+}
+
 export function bind_enum<T, TEnum extends { [K in KeysWithValue<T, 'enum'> | KeysWithValue<T, 'flags'>]: unknown }>(
 	settings: TypedSettings<T, TEnum>,
 	key: KeysWithValue<T, 'enum'>,
@@ -618,11 +657,21 @@ function getIndicatorDisplay(showIcon: boolean, showContent: boolean): Indicator
 	return IndicatorDisplay.Hidden;
 }
 
+/**
+ * Migrates deprecated keys to their replacements.
+ *
+ * Runs on every `enable()`, which - since the extension declares no `session-modes` - also means
+ * every screen unlock. `reset()` is a DConf write, so it is only issued for keys that actually
+ * carry a user value; without the guard every unlock wrote four keys that were already at their
+ * default.
+ */
 export function migrateSettings(settings: CopyousSettings): void {
 	// inverted paste-on-copy -> swap-copy-shortcut
 	const pasteOnCopy = settings.get_user_value<'b'>('paste-on-copy');
-	if (pasteOnCopy !== null) settings.set_boolean('swap-copy-shortcut', !pasteOnCopy.get_boolean());
-	settings.reset('paste-on-copy');
+	if (pasteOnCopy !== null) {
+		settings.set_boolean('swap-copy-shortcut', !pasteOnCopy.get_boolean());
+		settings.reset('paste-on-copy');
+	}
 
 	// show-indicator + show-content-indicator -> indicator-display
 	const indicatorDisplay = settings.get_user_value('indicator-display');
@@ -633,14 +682,16 @@ export function migrateSettings(settings: CopyousSettings): void {
 		const showContent = showContentIndicator?.get_boolean() ?? settings.get_boolean('show-content-indicator');
 		settings.set_enum('indicator-display', getIndicatorDisplay(showIcon, showContent));
 	}
-	settings.reset('show-indicator');
-	settings.reset('show-content-indicator');
+	if (showIndicator !== null) settings.reset('show-indicator');
+	if (showContentIndicator !== null) settings.reset('show-content-indicator');
 
 	// swap-scroll-shortcut -> cycle-item-{type,tag}-scroll-modifier
 	const swapScroll = settings.get_user_value<'b'>('swap-scroll-shortcut');
-	if (swapScroll !== null && swapScroll.get_boolean()) {
-		settings.set_enum('cycle-item-type-scroll-modifier', ScrollModifier.Ctrl);
-		settings.set_enum('cycle-item-tag-scroll-modifier', ScrollModifier.None);
+	if (swapScroll !== null) {
+		if (swapScroll.get_boolean()) {
+			settings.set_enum('cycle-item-type-scroll-modifier', ScrollModifier.Ctrl);
+			settings.set_enum('cycle-item-tag-scroll-modifier', ScrollModifier.None);
+		}
+		settings.reset('swap-scroll-shortcut');
 	}
-	settings.reset('swap-scroll-shortcut');
 }
