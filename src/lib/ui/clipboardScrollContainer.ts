@@ -16,6 +16,7 @@ import { SearchChange, SearchQuery } from './searchEntry.js';
 
 @registerClass()
 export class ClipboardScrollContainer extends St.BoxLayout {
+	private readonly _ext: CopyousExtension;
 	private readonly _statusItem: StatusItem;
 	private _lastFocus: Clutter.Actor | null = null;
 	private _lastQuery: SearchQuery | null = null;
@@ -27,6 +28,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			x_expand: false,
 		});
 
+		this._ext = ext;
 		this._statusItem = new StatusItem(ext);
 		this.updateVisible();
 	}
@@ -161,10 +163,16 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			'delete',
 			() => this.removeItem(item),
 
+			// Pinning changes both the sort position and whether exclude-pinned hides the item, so the
+			// search has to be re-applied either way.
+			'notify::pinned',
+			() => {
+				if (this._ext.settings.get_boolean('pinned-on-top')) this.insertOrMoveItem(item);
+				else this.updateSearch(item);
+			},
+
 			// Update search only when properties used by search can change.
 			'notify::content',
-			() => this.updateSearch(item),
-			'notify::pinned',
 			() => this.updateSearch(item),
 			'notify::tag',
 			() => this.updateSearch(item),
@@ -176,6 +184,20 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			() => this.updateSearch(item),
 			item,
 		);
+	}
+
+	/**
+	 * Re-orders every item, for when the sort criteria themselves change.
+	 *
+	 * Toggling pinned-on-top leaves the existing children in datetime order, which is not partitioned
+	 * by pinned state, so incremental insertion alone would never produce the right order.
+	 */
+	public resortItems(): void {
+		const items = this.get_children().filter((c) => c instanceof ClipboardItem);
+		for (const item of items) this.insertOrMoveItem(item, false, false);
+
+		if (this._lastQuery) this.search(this._lastQuery);
+		else this.updateVisible();
 	}
 
 	private findItem(id: number): ClipboardItem | null {
@@ -191,11 +213,34 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 
 		if (item.get_parent() === this) this.remove_child(item);
 
+		const pinnedOnTop = this._ext.settings.get_boolean('pinned-on-top');
+
 		let i = 0;
 		for (const c of this.get_children()) {
-			if (c instanceof ClipboardItem && c.entry.datetime.compare(item.entry.datetime) <= 0) {
-				this.insert_child_at_index(item, i);
-				break;
+			if (c instanceof ClipboardItem) {
+				// Compare pinned status first if pinned-on-top is enabled
+				if (pinnedOnTop) {
+					const itemIsPinned = item.entry.pinned;
+					const childIsPinned = c.entry.pinned;
+
+					// If item is pinned and child is not, insert before child
+					if (itemIsPinned && !childIsPinned) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+
+					// If both have same pinned status, compare by datetime
+					if (itemIsPinned === childIsPinned && c.entry.datetime.compare(item.entry.datetime) <= 0) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+				} else {
+					// Original behavior: sort by datetime only
+					if (c.entry.datetime.compare(item.entry.datetime) <= 0) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+				}
 			}
 			i++;
 		}

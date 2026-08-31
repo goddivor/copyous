@@ -235,6 +235,11 @@ export class FeedbackSettings extends Adw.PreferencesGroup {
 		});
 		this.add(indicatorDisplay);
 
+		const indicatorText = new Adw.EntryRow({
+			title: _('Custom Indicator Text'),
+		});
+		this.add(indicatorText);
+
 		const wiggleIndicator = new Adw.SwitchRow({
 			title: _('Wiggle Indicator'),
 			subtitle: _('Wiggle the indicator when a clipboard item is copied'),
@@ -268,6 +273,7 @@ export class FeedbackSettings extends Adw.PreferencesGroup {
 		// Bind properties
 		const settings: CopyousSettings = prefs.getSettings();
 		bind_enum(settings, 'indicator-display', indicatorDisplay, 'selected');
+		settings.bind('indicator-text', indicatorText, 'text', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('wiggle-indicator', wiggleIndicator, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('send-notification', sendNotification, 'active', Gio.SettingsBindFlags.DEFAULT);
 
