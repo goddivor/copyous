@@ -7,7 +7,7 @@ import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.j
 import type CopyousExtension from '../../../extension.js';
 import { registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { CharacterItemSettings } from '../../common/settings.js';
+import { CharacterItemSettings, getChildSettings } from '../../common/settings.js';
 import { ClipboardEntry } from '../../database/database.js';
 import { ClipboardItem } from './clipboardItem.js';
 
@@ -21,7 +21,7 @@ export class CharacterItem extends ClipboardItem {
 	constructor(ext: CopyousExtension, entry: ClipboardEntry) {
 		super(ext, entry, Icon.Character, _('Char'));
 
-		this.characterItemSettings = this.ext.settings.get_child('character-item');
+		this.characterItemSettings = getChildSettings(this.ext.settings, 'character-item');
 
 		this.add_style_class_name('character-item');
 

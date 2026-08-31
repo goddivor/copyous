@@ -6,7 +6,7 @@ import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.j
 import type CopyousExtension from '../../../extension.js';
 import { registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { ImageItemSettings } from '../../common/settings.js';
+import { ImageItemSettings, getChildSettings } from '../../common/settings.js';
 import { ClipboardEntry } from '../../database/database.js';
 import { ContentInfo, createFileInfo } from '../components/contentInfo.js';
 import { FileType, ImagePreview } from '../components/contentPreview.js';
@@ -37,7 +37,7 @@ export class ImageItem extends ClipboardItem {
 	constructor(ext: CopyousExtension, entry: ClipboardEntry) {
 		super(ext, entry, Icon.Image, _('Image'));
 
-		this.imageItemSettings = this.ext.settings.get_child('image-item');
+		this.imageItemSettings = getChildSettings(this.ext.settings, 'image-item');
 
 		this.add_style_class_name('image-item');
 		this.add_style_class_name('no-image-info');

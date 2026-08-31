@@ -6,7 +6,7 @@ import { gettext as _ } from 'resource:///org/gnome/shell/extensions/extension.j
 import type CopyousExtension from '../../../extension.js';
 import { registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { CodeItemSettings } from '../../common/settings.js';
+import { CodeItemSettings, getChildSettings } from '../../common/settings.js';
 import { ClipboardEntry, CodeMetadata } from '../../database/database.js';
 import { CodeLabel } from '../components/codeLabel.js';
 import { CodeInfo } from '../components/contentInfo.js';
@@ -22,7 +22,7 @@ export class CodeItem extends ClipboardItem {
 	constructor(ext: CopyousExtension, entry: ClipboardEntry) {
 		super(ext, entry, Icon.Code, _('Code'));
 
-		this.codeItemSettings = this.ext.settings.get_child('code-item');
+		this.codeItemSettings = getChildSettings(this.ext.settings, 'code-item');
 
 		this.add_style_class_name('code-item');
 

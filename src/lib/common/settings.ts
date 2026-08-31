@@ -601,6 +601,7 @@ type ChildSettings = {
 	[ChildKeys.FileItem]: FileItemSettings;
 	[ChildKeys.LinkItem]: LinkItemSettings;
 	[ChildKeys.CharacterItem]: CharacterItemSettings;
+	[ChildKeys.ItemColors]: ItemColorsSettings;
 	[ChildKeys.Theme]: ThemeSettings;
 };
 

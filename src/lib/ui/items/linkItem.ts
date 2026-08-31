@@ -10,7 +10,7 @@ import type CopyousExtension from '../../../extension.js';
 import { ActiveState } from '../../common/constants.js';
 import { enumParamSpec, flagsParamSpec, registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { BackgroundSize, LinkItemSettings } from '../../common/settings.js';
+import { BackgroundSize, LinkItemSettings, getChildSettings } from '../../common/settings.js';
 import { ClipboardEntry, LinkMetadata } from '../../database/database.js';
 import { tryGetLinkImage, tryGetMetadata } from '../../misc/link.js';
 import { ImagePreview } from '../components/contentPreview.js';
@@ -302,7 +302,7 @@ export class LinkItem extends ClipboardItem {
 	constructor(ext: CopyousExtension, entry: ClipboardEntry) {
 		super(ext, entry, Icon.Link, _('Link'));
 
-		this.linkItemSettings = this.ext.settings.get_child('link-item');
+		this.linkItemSettings = getChildSettings(this.ext.settings, 'link-item');
 
 		this.add_style_class_name('link-item');
 
