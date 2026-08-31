@@ -12,7 +12,9 @@ import type CopyousExtension from '../../extension.js';
 import { ItemType, ItemTypes, Tag, Tags } from '../common/constants.js';
 import { enumParamSpec, registerClass } from '../common/gjs.js';
 import { Icon, loadIcon } from '../common/icons.js';
+import { ScrollModifier } from '../common/settings.js';
 import { ClipboardEntry } from '../database/database.js';
+import { Shortcut } from '../misc/shortcuts.js';
 import { TagsItem } from './components/tagsItem.js';
 
 const SearchCollator = new Intl.Collator(undefined, { sensitivity: 'base' });
@@ -526,8 +528,10 @@ export class SearchEntry extends St.Entry {
 			return Clutter.EVENT_STOP;
 		}
 
-		// Toggle pin: alt
-		if (key === Clutter.KEY_Alt_L || key === Clutter.KEY_Alt_R || key === Clutter.KEY_ISO_Level3_Shift) {
+		// Toggle pin
+		if (
+			this.ext.shortcutsManager?.getShortcutForKeyBinding(key, event.get_state()) === Shortcut.TogglePinnedSearch
+		) {
 			this.pinned = !this.pinned;
 			return Clutter.EVENT_STOP;
 		}
@@ -576,23 +580,44 @@ export class SearchEntry extends St.Entry {
 	}
 
 	override vfunc_scroll_event(event: Clutter.Event): boolean {
+		const state = event.get_state();
+		const type = this.modifierMatches(state, this.ext.settings.get_enum('cycle-item-type-scroll-modifier'));
+		const tag = this.modifierMatches(state, this.ext.settings.get_enum('cycle-item-tag-scroll-modifier'));
+
 		const direction = event.get_scroll_direction();
-		const swap = this.ext.settings.get_boolean('swap-scroll-shortcut');
 		if (direction === Clutter.ScrollDirection.UP || direction === Clutter.ScrollDirection.LEFT) {
-			if (event.has_control_modifier() !== swap) {
-				this.prevTag();
-			} else {
-				this.prevType();
-			}
+			if (type) this.prevType();
+			else if (tag) this.prevTag();
 		} else if (direction === Clutter.ScrollDirection.DOWN || direction === Clutter.ScrollDirection.RIGHT) {
-			if (event.has_control_modifier() !== swap) {
-				this.nextTag();
-			} else {
-				this.nextType();
-			}
+			if (type) this.nextType();
+			else if (tag) this.nextTag();
 		}
 
 		return Clutter.EVENT_PROPAGATE;
+	}
+
+	/**
+	 * Whether the held modifiers are exactly the configured one.
+	 *
+	 * The comparison is exact rather than a bit test, so that binding one action to no modifier and
+	 * the other to Ctrl does not make the unmodified action fire for both.
+	 */
+	private modifierMatches(state: Clutter.ModifierType, modifier: ScrollModifier): boolean {
+		const mask =
+			Clutter.ModifierType.CONTROL_MASK |
+			Clutter.ModifierType.MOD1_MASK |
+			Clutter.ModifierType.SHIFT_MASK |
+			Clutter.ModifierType.SUPER_MASK;
+
+		const expected = {
+			[ScrollModifier.None]: 0,
+			[ScrollModifier.Ctrl]: Clutter.ModifierType.CONTROL_MASK,
+			[ScrollModifier.Alt]: Clutter.ModifierType.MOD1_MASK,
+			[ScrollModifier.Shift]: Clutter.ModifierType.SHIFT_MASK,
+			[ScrollModifier.Super]: Clutter.ModifierType.SUPER_MASK,
+		}[modifier];
+
+		return (state & mask) === expected;
 	}
 
 	override vfunc_unmap(): void {

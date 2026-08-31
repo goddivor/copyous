@@ -23,6 +23,18 @@ export class DialogShortcuts extends Adw.PreferencesGroup {
 		const toggleIncognito = new ShortcutRow(_('Toggle Incognito Mode'), '', true);
 		this.add(toggleIncognito);
 
+		const selectNext = new ShortcutRow(_('Select Next Item'), '', true);
+		this.add(selectNext);
+
+		const selectPrevious = new ShortcutRow(_('Select Previous Item'), '', true);
+		this.add(selectPrevious);
+
+		const selectionNotification = new Adw.SwitchRow({
+			title: _('Notify on Selection'),
+			subtitle: _('Show a notification with the item picked while cycling through the history'),
+		});
+		this.add(selectionNotification);
+
 		const openDialogBehaviour = new Adw.ComboRow({
 			title: _('Open Clipboard Dialog Behavior'),
 			model: Gtk.StringList.new([_('Toggle Dialog'), _('Open / Select Next Item')]),
@@ -33,10 +45,21 @@ export class DialogShortcuts extends Adw.PreferencesGroup {
 		const settings: CopyousSettings = prefs.getSettings();
 		settings.bind('open-clipboard-dialog-shortcut', openDialog, 'shortcuts', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('toggle-incognito-mode-shortcut', toggleIncognito, 'shortcuts', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('select-next-item-shortcut', selectNext, 'shortcuts', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('select-previous-item-shortcut', selectPrevious, 'shortcuts', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind(
+			'show-selected-item-notification',
+			selectionNotification,
+			'active',
+			Gio.SettingsBindFlags.DEFAULT,
+		);
 		bind_enum(settings, 'open-clipboard-dialog-behavior', openDialogBehaviour, 'selected');
 
 		makeResettable(openDialog, settings, 'open-clipboard-dialog-shortcut');
 		makeResettable(toggleIncognito, settings, 'toggle-incognito-mode-shortcut');
+		makeResettable(selectNext, settings, 'select-next-item-shortcut');
+		makeResettable(selectPrevious, settings, 'select-previous-item-shortcut');
+		makeResettable(selectionNotification, settings, 'show-selected-item-notification');
 		makeResettable(openDialogBehaviour, settings, 'open-clipboard-dialog-behavior');
 	}
 }

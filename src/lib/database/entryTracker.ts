@@ -99,6 +99,16 @@ export class ClipboardEntryTracker {
 	 * `changed::database-backend` right back at the extension. Reloading there would read the whole
 	 * history a second time, so the settings handler uses this to skip the redundant work.
 	 */
+	/**
+	 * The tracked entries, newest first.
+	 *
+	 * Insertion order follows the database, which returns rows ordered by descending datetime, so
+	 * the map preserves that order; sorting explicitly keeps it correct after later date updates.
+	 */
+	public get entries(): ClipboardEntry[] {
+		return Array.from(this._entries.values()).sort((a, b) => b.datetime.compare(a.datetime));
+	}
+
 	public matchesSettings(): boolean {
 		return this._database !== undefined && this._activeConfig === this.currentConfig();
 	}

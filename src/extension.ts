@@ -19,6 +19,9 @@ import { ThemeManager } from './lib/misc/theme.js';
 import { ClipboardDialog } from './lib/ui/clipboardDialog.js';
 import { ClipboardIndicator } from './lib/ui/indicator.js';
 
+/** How long a history cycle stays open before the next press starts a fresh one. */
+const CYCLE_TIMEOUT_SECONDS = 5;
+
 export default class CopyousExtension extends Extension {
 	public settings!: CopyousSettings;
 	public logger!: ConsoleLike;
@@ -45,6 +48,9 @@ export default class CopyousExtension extends Extension {
 	private updateHistory: boolean = false;
 	private initEntryTrackerPromise: Promise<void> = Promise.resolve();
 	private loadEntriesId: number = -1;
+	private cycleEntries: ClipboardEntry[] | null = null;
+	private cycleIndex: number = -1;
+	private cycleTimeoutId: number = -1;
 
 	public clipboardManager: ClipboardManager | undefined;
 
@@ -124,6 +130,10 @@ export default class CopyousExtension extends Extension {
 			() => this.clipboardDialog?.dialogShortcut(),
 			'toggle-incognito-mode',
 			() => this.indicator?.toggleIncognito(),
+			'select-next-item',
+			() => this.cycleItem(1),
+			'select-previous-item',
+			() => this.cycleItem(-1),
 			this,
 		);
 
@@ -147,6 +157,9 @@ export default class CopyousExtension extends Extension {
 		this.clipboardManager.connectObject(
 			'clipboard',
 			(_: unknown, entry: ClipboardEntry) => {
+				// New content means the cycle's snapshot is stale.
+				this.endCycle();
+
 				this.clipboardDialog?.addEntry(entry);
 				this.indicator?.showEntry(entry);
 				this.indicator?.animate();
@@ -335,6 +348,53 @@ export default class CopyousExtension extends Extension {
 		});
 	}
 
+	/**
+	 * Moves through the history in place, without opening the dialog.
+	 *
+	 * The list is snapshotted when a cycle starts and reused until the cycle ends, because copying
+	 * an entry can refresh its datetime (update-date-on-copy) and would otherwise reorder the list
+	 * under the user between two presses. The cycle ends when something new is copied, or after a
+	 * few seconds of inactivity.
+	 */
+	private cycleItem(offset: number) {
+		if (!this.clipboardManager) return;
+
+		if (!this.cycleEntries) {
+			this.cycleEntries = this.entryTracker?.entries ?? [];
+			this.cycleIndex = -1;
+		}
+
+		const entries = this.cycleEntries;
+		if (entries.length === 0) return this.endCycle();
+
+		// Wrap around at both ends, as the issue asks for.
+		this.cycleIndex = (this.cycleIndex + offset + entries.length) % entries.length;
+
+		const entry = entries[this.cycleIndex];
+		if (!entry) return this.endCycle();
+
+		this.clipboardManager.copyEntry(entry).catch(this.logger.error.bind(this.logger));
+		this.indicator?.showEntry(entry);
+
+		if (this.settings.get_boolean('show-selected-item-notification')) {
+			this.notificationManager?.selectionNotification(entry);
+		}
+
+		if (this.cycleTimeoutId >= 0) GLib.source_remove(this.cycleTimeoutId);
+		this.cycleTimeoutId = GLib.timeout_add_seconds(GLib.PRIORITY_DEFAULT, CYCLE_TIMEOUT_SECONDS, () => {
+			this.cycleTimeoutId = -1;
+			this.endCycle();
+			return GLib.SOURCE_REMOVE;
+		});
+	}
+
+	private endCycle() {
+		if (this.cycleTimeoutId >= 0) GLib.source_remove(this.cycleTimeoutId);
+		this.cycleTimeoutId = -1;
+		this.cycleEntries = null;
+		this.cycleIndex = -1;
+	}
+
 	override disable() {
 		// UI
 		this.clipboardDialog?.disconnectObject(this);
@@ -374,6 +434,7 @@ export default class CopyousExtension extends Extension {
 		// Database
 		const error = this.logger.error.bind(this.logger);
 		this.stopLoadingEntries();
+		this.endCycle();
 		this.entryTracker?.destroy().catch(error);
 		this.entryTracker = undefined;
 		this.initEntryTrackerPromise = Promise.resolve();

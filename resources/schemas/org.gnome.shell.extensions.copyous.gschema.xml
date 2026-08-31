@@ -70,6 +70,14 @@
 		<value nick="disabled" value="2"/>
 	</enum>
 
+	<enum id="org.gnome.shell.extensions.copyous.ScrollModifier">
+		<value nick="none" value="0"/>
+		<value nick="ctrl" value="1"/>
+		<value nick="alt" value="2"/>
+		<value nick="shift" value="3"/>
+		<value nick="super" value="4"/>
+	</enum>
+
 	<enum id="org.gnome.shell.extensions.copyous.IndicatorDisplay">
 		<value nick="hidden" value="0"/>
 		<value nick="icon-only" value="1"/>
@@ -407,7 +415,37 @@
 
 		<key name="swap-scroll-shortcut" type="b">
 			<default>false</default>
-			<summary>Swaps scroll shortcuts of cycling item types and item tags</summary>
+			<summary>Swaps scroll shortcuts of cycling item types and item tags (Deprecated)</summary>
+		</key>
+
+		<key name="toggle-pinned-search-shortcut" type="as">
+			<default>['&lt;Alt&gt;']</default>
+			<summary>Shortcut to toggle the pinned search filter</summary>
+		</key>
+
+		<key name="cycle-item-type-scroll-modifier" enum="org.gnome.shell.extensions.copyous.ScrollModifier">
+			<default>'none'</default>
+			<summary>Modifier held with the scroll wheel to cycle item types</summary>
+		</key>
+
+		<key name="cycle-item-tag-scroll-modifier" enum="org.gnome.shell.extensions.copyous.ScrollModifier">
+			<default>'ctrl'</default>
+			<summary>Modifier held with the scroll wheel to cycle item tags</summary>
+		</key>
+
+		<key name="select-next-item-shortcut" type="as">
+			<default>[]</default>
+			<summary>Shortcut to select the next item without opening the dialog</summary>
+		</key>
+
+		<key name="select-previous-item-shortcut" type="as">
+			<default>[]</default>
+			<summary>Shortcut to select the previous item without opening the dialog</summary>
+		</key>
+
+		<key name="show-selected-item-notification" type="b">
+			<default>false</default>
+			<summary>Show a notification when cycling items with shortcuts</summary>
 		</key>
 	</schema>
 
