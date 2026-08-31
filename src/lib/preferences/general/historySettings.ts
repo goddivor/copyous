@@ -155,17 +155,25 @@ export class HistorySettings extends Adw.PreferencesGroup {
 		});
 		this.add(timeLimit);
 
+		const ignoreImages = new Adw.SwitchRow({
+			title: _('Ignore Images'),
+			subtitle: _('Do not store copied images in the clipboard history'),
+		});
+		this.add(ignoreImages);
+
 		// Bind properties
 		this._settings = prefs.getSettings();
 		this._settings.bind('database-location', this, 'database-location', Gio.SettingsBindFlags.DEFAULT);
 		bind_enum(this._settings, 'clipboard-history', this._clipboardHistory, 'selected');
 		this._settings.bind('history-length', historyLength, 'value', Gio.SettingsBindFlags.DEFAULT);
 		this._settings.bind('history-time', timeLimit, 'value', Gio.SettingsBindFlags.DEFAULT);
+		this._settings.bind('ignore-images', ignoreImages, 'active', Gio.SettingsBindFlags.DEFAULT);
 
 		makeResettable(this._databaseLocation, this._settings, 'database-location');
 		makeResettable(this._clipboardHistory, this._settings, 'clipboard-history');
 		makeResettable(historyLength, this._settings, 'history-length');
 		makeResettable(timeLimit, this._settings, 'history-time');
+		makeResettable(ignoreImages, this._settings, 'ignore-images');
 
 		// Check gda
 		checkGda(this.prefs)
