@@ -16,6 +16,7 @@ export const Settings = {
 	PreserveHtmlContent: 'preserve-html-content',
 
 	RememberSearch: 'remember-search',
+	PinnedOnTop: 'pinned-on-top',
 	ExcludePinned: 'exclude-pinned',
 	ExcludeTagged: 'exclude-tagged',
 	ProtectPinned: 'protect-pinned',
@@ -25,6 +26,7 @@ export const Settings = {
 	UpdateDateOnCopy: 'update-date-on-copy',
 
 	IndicatorDisplay: 'indicator-display',
+	IndicatorText: 'indicator-text',
 	ShowIndicator: 'show-indicator',
 	ShowContentIndicator: 'show-content-indicator',
 	WiggleIndicator: 'wiggle-indicator',
@@ -150,6 +152,7 @@ export const SettingsTypes = {
 	[Settings.PreserveHtmlContent]: 'boolean',
 
 	[Settings.RememberSearch]: 'boolean',
+	[Settings.PinnedOnTop]: 'boolean',
 	[Settings.ExcludePinned]: 'boolean',
 	[Settings.ExcludeTagged]: 'boolean',
 	[Settings.ProtectPinned]: 'boolean',
@@ -159,6 +162,7 @@ export const SettingsTypes = {
 	[Settings.UpdateDateOnCopy]: 'boolean',
 
 	[Settings.IndicatorDisplay]: 'enum',
+	[Settings.IndicatorText]: 'string',
 	[Settings.ShowIndicator]: 'boolean', // deprecated
 	[Settings.ShowContentIndicator]: 'boolean', // deprecated
 	[Settings.WiggleIndicator]: 'boolean',

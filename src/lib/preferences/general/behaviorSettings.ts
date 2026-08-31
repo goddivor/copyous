@@ -21,6 +21,12 @@ export class BehaviorSettings extends Adw.PreferencesGroup {
 		});
 		this.add(rememberSearch);
 
+		const pinnedOnTop = new Adw.SwitchRow({
+			title: _('Keep Pinned Items on Top'),
+			subtitle: _('Pin items appear at the top of the clipboard history list'),
+		});
+		this.add(pinnedOnTop);
+
 		const excludePinned = new Adw.SwitchRow({
 			title: _('Exclude Pinned Items from Main View'),
 			subtitle: _('Pinned items appear only when searching for pinned items'),
@@ -67,6 +73,7 @@ export class BehaviorSettings extends Adw.PreferencesGroup {
 		// Bind properties
 		const settings: CopyousSettings = prefs.getSettings();
 		settings.bind('remember-search', rememberSearch, 'active', Gio.SettingsBindFlags.DEFAULT);
+		settings.bind('pinned-on-top', pinnedOnTop, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('exclude-pinned', excludePinned, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('exclude-tagged', excludeTagged, 'active', Gio.SettingsBindFlags.DEFAULT);
 		settings.bind('protect-pinned', protectPinned, 'active', Gio.SettingsBindFlags.DEFAULT);

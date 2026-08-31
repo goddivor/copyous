@@ -112,6 +112,8 @@ export class ClipboardIndicator extends PanelMenu.Button {
 		this.ext.settings.connectObject(
 			'changed::indicator-display',
 			this.updateSettings.bind(this),
+			'changed::indicator-text',
+			this.updateSettings.bind(this),
 			'changed::incognito',
 			this.updateSettings.bind(this),
 			this,
@@ -159,6 +161,7 @@ export class ClipboardIndicator extends PanelMenu.Button {
 
 	private updateSettings() {
 		const indicatorDisplay = this.ext.settings.get_enum('indicator-display');
+		const indicatorText = this.ext.settings.get_string('indicator-text');
 		const showContentIndicator =
 			indicatorDisplay === IndicatorDisplay.ClipboardContentOnly ||
 			indicatorDisplay === IndicatorDisplay.IconAndClipboardContent;
@@ -169,7 +172,7 @@ export class ClipboardIndicator extends PanelMenu.Button {
 
 		this.visible = indicatorDisplay !== IndicatorDisplay.Hidden;
 		this._icon.visible = showIconIndicator;
-		if (this._previewWidget) this._previewWidget.visible = showContentIndicator;
+		if (this._previewWidget) this._previewWidget.visible = showContentIndicator && !indicatorText;
 		this.incognito = this.ext.settings.get_boolean('incognito');
 	}
 
@@ -184,6 +187,13 @@ export class ClipboardIndicator extends PanelMenu.Button {
 	}
 
 	showEntry(entry: ClipboardEntry) {
+		// If custom indicator text is set, display it instead of clipboard content
+		const indicatorText = this.ext.settings.get_string('indicator-text');
+		if (indicatorText) {
+			this.showText(indicatorText);
+			return;
+		}
+
 		switch (entry.type) {
 			case ItemType.Text:
 			case ItemType.Code:

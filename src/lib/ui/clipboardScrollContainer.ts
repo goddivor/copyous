@@ -16,6 +16,7 @@ import { SearchChange, SearchQuery } from './searchEntry.js';
 
 @registerClass()
 export class ClipboardScrollContainer extends St.BoxLayout {
+	private readonly _ext: CopyousExtension;
 	private readonly _statusItem: StatusItem;
 	private _lastFocus: Clutter.Actor | null = null;
 	private _lastQuery: SearchQuery | null = null;
@@ -27,6 +28,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			x_expand: false,
 		});
 
+		this._ext = ext;
 		this._statusItem = new StatusItem(ext);
 		this.updateVisible();
 	}
@@ -161,10 +163,18 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			'delete',
 			() => this.removeItem(item),
 
+			// Move item when pinned changes (if pinned-on-top is enabled)
+			'notify::pinned',
+			() => {
+				if (this._ext.settings.get_boolean('pinned-on-top')) {
+					this.insertOrMoveItem(item, false);
+				} else {
+					this.updateSearch(item);
+				}
+			},
+
 			// Update search only when properties used by search can change.
 			'notify::content',
-			() => this.updateSearch(item),
-			'notify::pinned',
 			() => this.updateSearch(item),
 			'notify::tag',
 			() => this.updateSearch(item),
@@ -191,11 +201,34 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 
 		if (item.get_parent() === this) this.remove_child(item);
 
+		const pinnedOnTop = this._ext.settings.get_boolean('pinned-on-top');
+
 		let i = 0;
 		for (const c of this.get_children()) {
-			if (c instanceof ClipboardItem && c.entry.datetime.compare(item.entry.datetime) <= 0) {
-				this.insert_child_at_index(item, i);
-				break;
+			if (c instanceof ClipboardItem) {
+				// Compare pinned status first if pinned-on-top is enabled
+				if (pinnedOnTop) {
+					const itemIsPinned = item.entry.pinned;
+					const childIsPinned = c.entry.pinned;
+
+					// If item is pinned and child is not, insert before child
+					if (itemIsPinned && !childIsPinned) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+
+					// If both have same pinned status, compare by datetime
+					if (itemIsPinned === childIsPinned && c.entry.datetime.compare(item.entry.datetime) <= 0) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+				} else {
+					// Original behavior: sort by datetime only
+					if (c.entry.datetime.compare(item.entry.datetime) <= 0) {
+						this.insert_child_at_index(item, i);
+						break;
+					}
+				}
 			}
 			i++;
 		}

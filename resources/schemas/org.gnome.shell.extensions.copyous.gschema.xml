@@ -192,6 +192,14 @@
 			<default>'icon-only'</default>
 			<summary>Choose how the clipboard indicator appears in the top panel</summary>
 		</key>
+		<key name="indicator-text" type="s">
+			<default>''</default>
+			<summary>Custom text to display in the indicator instead of clipboard content (overrides clipboard content display)</summary>
+		</key>
+		<key name="pinned-on-top" type="b">
+			<default>false</default>
+			<summary>Keep pinned clipboard items at the top of the list</summary>
+		</key>
 		<key name="show-indicator" type="b">
 			<default>true</default>
 			<summary>Show the clipboard icon in the indicator (Deprecated)</summary>
