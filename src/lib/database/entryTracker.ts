@@ -19,10 +19,16 @@ export class ClipboardEntryTracker {
 	constructor(private ext: CopyousExtension) {}
 
 	async init(): Promise<ClipboardEntry[]> {
+		const token = this.ext.token;
+
 		if (this._database) {
 			// Close without clearing on re-initialization
 			await this.destroy();
 		}
+
+		// The tracked set is rebuilt from the database below, so nothing from the previous backend
+		// should survive: the ids of another database mean nothing here.
+		this._entries.clear();
 
 		const backend: DatabaseBackend = this.ext.settings.get_enum('database-backend');
 		const file = this.getFile();
@@ -38,56 +44,71 @@ export class ClipboardEntryTracker {
 		// 4. (sqlite)  sqlite backend can be loaded
 		// 5. (json)    json backend can be loaded
 		// 6. fallback to in-memory
-		let entries: ClipboardEntry[] | null = null;
+		let opened = false;
 		if (backend === DatabaseBackend.Default) {
 			if (this.ext.settings.get_boolean('in-memory-database')) {
 				this.ext.logger.log('Set default database backend to in-memory');
-				entries = await this.initMemory();
+				opened = await this.initMemory();
 			} else if (dbFile.query_exists(null)) {
-				entries = await this.initSqlite(dbFile, true);
-				if (entries !== null) {
+				opened = await this.initSqlite(dbFile, true);
+				if (opened) {
 					this.ext.settings.set_enum('database-backend', DatabaseBackend.Sqlite);
 					this.ext.logger.log('Set default database backend to SQLite');
 				}
 			} else if (jsonFile.query_exists(null)) {
-				entries = await this.initJson(jsonFile);
-				if (entries !== null) {
+				opened = await this.initJson(jsonFile);
+				if (opened) {
 					this.ext.settings.set_enum('database-backend', DatabaseBackend.Json);
 					this.ext.logger.log('Set default database backend to JSON');
 				}
 			} else {
-				entries = await this.initSqlite(dbFile, false);
-				if (entries !== null) {
+				opened = await this.initSqlite(dbFile, false);
+				if (opened) {
 					this.ext.settings.set_enum('database-backend', DatabaseBackend.Sqlite);
 					this.ext.logger.log('Set default database backend to SQLite');
 				} else {
-					entries = await this.initJson(jsonFile);
-					if (entries !== null) {
+					opened = await this.initJson(jsonFile);
+					if (opened) {
 						this.ext.settings.set_enum('database-backend', DatabaseBackend.Json);
 						this.ext.logger.log('Set default database backend to JSON');
 					} else {
-						entries = await this.initMemory();
+						opened = await this.initMemory();
 						this.ext.settings.set_enum('database-backend', DatabaseBackend.Memory);
 						this.ext.logger.log('Set default database backend to in-memory');
 					}
 				}
 			}
 		} else if (backend === DatabaseBackend.Sqlite) {
-			entries = await this.initSqlite(dbFile, true);
+			opened = await this.initSqlite(dbFile, true);
 		} else if (backend === DatabaseBackend.Json) {
-			entries = await this.initJson(jsonFile);
+			opened = await this.initJson(jsonFile);
 		}
 
 		// Fallback to in-memory
-		entries ??= await this.initMemory();
+		if (!opened) await this.initMemory();
+
+		// `disable()` can land while the backend was still opening. Everything below reads settings,
+		// which are already gone at that point, so close what was just opened and report nothing.
+		if (this.ext.isCancelled(token)) {
+			await this.destroy();
+			return [];
+		}
 
 		this._activeConfig = this.currentConfig();
 
+		// Prune before reading, not after.
+		//
+		// `history-length` and `history-time` decide what the history is allowed to hold, and the
+		// pruning honours pinned and tagged entries, so it is the only correct way to bound the
+		// initial read: a plain `LIMIT` would hide pinned entries. Reading first meant every row that
+		// was about to be deleted still became a `ClipboardEntry`, and was still handed to the dialog
+		// to be turned into an actor - for rows that no longer existed by then.
+		await this.deleteOldest();
+
+		const entries = (await this._database?.entries()) ?? [];
+
 		// Track all entries
 		this.track(...entries);
-
-		// Delete oldest entries
-		await this.deleteOldest();
 
 		return entries;
 	}
@@ -131,21 +152,17 @@ export class ClipboardEntryTracker {
 		return location ? Gio.File.new_for_path(location) : getDefaultDatabaseFile(this.ext, DatabaseBackend.Default);
 	}
 
-	private async initSqlite(file: Gio.File | null, showError: boolean): Promise<ClipboardEntry[] | null> {
-		try {
-			// Check if DEBUG_COPYOUS_GDA_VERSION is set
-			const environment = GLib.get_environ();
-			const gdaVersion = GLib.environ_getenv(environment, 'DEBUG_COPYOUS_GDA_VERSION');
-			if (gdaVersion) {
-				imports.package.require({ Gda: gdaVersion });
-			}
-		} catch (err) {
-			this.ext.logger.warn(err);
-		}
+	/** Opens the SQLite backend. Returns whether it is usable; the entries are read by `init()`. */
+	private async initSqlite(file: Gio.File | null, showError: boolean): Promise<boolean> {
+		// Check if DEBUG_COPYOUS_GDA_VERSION is set. The version has to be pinned on the import
+		// itself: `imports.package.require()` is the legacy import system, which does not exist in an
+		// ESM extension, so the call only ever threw and the variable did nothing.
+		const gdaVersion = GLib.getenv('DEBUG_COPYOUS_GDA_VERSION');
+		const gdaImport = gdaVersion ? `gi://Gda?version=${gdaVersion}` : 'gi://Gda';
 
 		let gda: typeof Gda;
 		try {
-			gda = (await import('gi://Gda')).default;
+			gda = ((await import(gdaImport)) as { default: typeof Gda }).default;
 		} catch {
 			this.ext.logger.error(`Failed to load Gda`);
 
@@ -156,14 +173,14 @@ export class ClipboardEntryTracker {
 					[_('Disable Warning'), () => this.ext.settings.set_boolean('disable-gda-warning', true)],
 				);
 			}
-			return null;
+			return false;
 		}
 
 		try {
 			this.ext.logger.log(`Using ${file === null ? 'in-memory ' : ''}Gda ${gda.__version__} database`);
 			this._database = new GdaDatabase(this.ext, gda, file);
 			await this._database.init();
-			return await this._database.entries();
+			return true;
 		} catch (e) {
 			this.ext.logger.error('Failed to load Gda', e);
 			// Close database connection before fallback
@@ -173,32 +190,33 @@ export class ClipboardEntryTracker {
 			}
 			this.ext.notificationManager?.warning(_('Failed to load Gda'), _('Clipboard history will be disabled'));
 
-			return null;
+			return false;
 		}
 	}
 
-	private async initJson(file: Gio.File | null): Promise<ClipboardEntry[] | null> {
+	/** Opens the JSON backend. Returns whether it is usable; the entries are read by `init()`. */
+	private async initJson(file: Gio.File | null): Promise<boolean> {
 		if (file === null) return await this.initMemory();
 
 		try {
 			this.ext.logger.log('Using JSON database');
 			this._database = new JsonDatabase(this.ext, file);
 			await this._database.init();
-			return await this._database.entries();
+			return true;
 		} catch (e) {
 			this.ext.logger.error('Failed to initialize JSON database', e);
 			this.ext.notificationManager?.warning(_('Failed to load JSON'), _('Clipboard history will be disabled'));
 
-			return null;
+			return false;
 		}
 	}
 
-	private async initMemory(): Promise<ClipboardEntry[]> {
+	private async initMemory(): Promise<boolean> {
 		this.ext.logger.log('Using in-memory database');
 
 		this._database = new MemoryDatabase();
 		await this._database.init();
-		return [];
+		return true;
 	}
 
 	public async clear(history: ClipboardHistory | null = null) {

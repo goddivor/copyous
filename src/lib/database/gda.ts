@@ -52,24 +52,31 @@ function new_connection(Gda: typeof Gda5, cncString: string): Gda5.Connection {
 	}
 }
 
+/**
+ * Opens the connection without blocking the caller.
+ *
+ * Gda 5 exposes no asynchronous open, so the best that can be done is to hand the main loop a turn
+ * first: `enable()` finishes, the shell draws a frame, and only then does the connection open. The
+ * open itself still blocks the main loop while it runs.
+ */
 function open_async(connection: Gda5.Connection | Gda6.Connection): Promise<boolean> {
 	return new Promise((resolve, reject) => {
-		if ('open_async' in connection) {
-			// Gda 6
-			GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
-				try {
+		GLib.idle_add(GLib.PRIORITY_DEFAULT, () => {
+			try {
+				if ('open_async' in connection) {
+					// Gda 6
 					connection.set_main_context(null, GLib.MainContext.ref_thread_default());
 					connection.open_async((_cnc, _jobId, result) => resolve(result));
-				} catch (error) {
-					reject(error as Error);
+				} else {
+					// Gda 5
+					resolve(connection.open());
 				}
+			} catch (error) {
+				reject(error as Error);
+			}
 
-				return GLib.SOURCE_REMOVE;
-			});
-		} else {
-			// Gda 5
-			resolve(connection.open());
-		}
+			return GLib.SOURCE_REMOVE;
+		});
 	});
 }
 
@@ -149,6 +156,9 @@ function async_statement_execute_select<T>(
 			});
 		} else {
 			// Gda 6
+			// Deferred, not asynchronous: Gda 6 exposes no async statement execution, so the query
+			// still runs on the main loop - just not in the caller's turn. Bounding what is asked of
+			// it is what keeps this off the critical path; see `ClipboardEntryTracker.init()`.
 			GLib.idle_add(GLib.PRIORITY_HIGH, () => {
 				try {
 					const datamodel = connection.statement_execute_select(statement as Gda6.Statement, null);
@@ -219,6 +229,7 @@ function async_statement_execute_non_select(
 			});
 		} else {
 			// Gda 6
+			// Deferred, not asynchronous: see `async_statement_execute_select`.
 			GLib.idle_add(GLib.PRIORITY_HIGH, () => {
 				try {
 					const result = connection.statement_execute_non_select(statement as Gda6.Statement, null);
