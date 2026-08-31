@@ -6,7 +6,7 @@ import { ConsoleLike, Extension } from 'resource:///org/gnome/shell/extensions/e
 import type { HLJSApi } from 'highlight.js';
 import type { LanguageFn } from 'highlight.js';
 
-import { getDataPath, getHljsLanguages, getHljsPath } from './lib/common/constants.js';
+import { getDataPath, getHljsPath, getInstalledHljsLanguages } from './lib/common/constants.js';
 import { DbusService } from './lib/common/dbus.js';
 import { ClipboardHistory, CopyousSettings, migrateSettings } from './lib/common/settings.js';
 import { SoundManager, tryCreateSoundManager } from './lib/common/sound.js';
@@ -27,7 +27,11 @@ export default class CopyousExtension extends Extension {
 	public logger!: ConsoleLike;
 
 	public hljs: HLJSApi | null | undefined;
-	private hljsMonitor: Gio.FileMonitor | undefined;
+	// Two distinct monitors: one watches the highlight.js bundle so a late install is picked up, the
+	// other watches the extra languages directory. Sharing a single field meant the bundle monitor
+	// kept the languages monitor from ever being installed.
+	private hljsFileMonitor: Gio.FileMonitor | undefined;
+	private hljsLanguagesMonitor: Gio.FileMonitor | undefined;
 	private hljsLanguages: Map<string, boolean> | undefined;
 	private hljsCallbacks: (() => void)[] | undefined;
 
@@ -54,7 +58,29 @@ export default class CopyousExtension extends Extension {
 
 	public clipboardManager: ClipboardManager | undefined;
 
+	/** Cancelled by `disable()`, so work started by `enable()` can bail out instead of resurrecting. */
+	private cancellable: Gio.Cancellable | undefined;
+
+	/**
+	 * The token of the current `enable()`.
+	 *
+	 * Capture it before an `await` and hand it back to `isCancelled()` afterwards. Nothing started by
+	 * `enable()` is cancellable on its own, so a lock/unlock cycle used to let a promise from the
+	 * previous activation install its result into the new one - or into no one at all, leaking the
+	 * database connection or the file monitor it had just created.
+	 */
+	public get token(): Gio.Cancellable | undefined {
+		return this.cancellable;
+	}
+
+	/** Whether `disable()` has run since `token` was taken. A later `enable()` counts as cancelled. */
+	public isCancelled(token: Gio.Cancellable | undefined): boolean {
+		return token === undefined || token !== this.cancellable || token.is_cancelled();
+	}
+
 	override enable() {
+		this.cancellable = new Gio.Cancellable();
+
 		this.settings = this.getSettings();
 		migrateSettings(this.settings);
 
@@ -117,9 +143,15 @@ export default class CopyousExtension extends Extension {
 
 		// Feedback
 		this.notificationManager = new NotificationManager(this);
+		const soundToken = this.token;
 		tryCreateSoundManager(this)
 			.then((soundManager) => {
-				if (soundManager) this.soundManager = soundManager;
+				if (!soundManager) return;
+
+				// `disable()` may have run while GSound was loading; keeping the manager would leak a
+				// GSound context that nothing destroys any more.
+				if (this.isCancelled(soundToken)) soundManager.destroy();
+				else this.soundManager = soundManager;
 			})
 			.catch(error);
 
@@ -187,28 +219,34 @@ export default class CopyousExtension extends Extension {
 	private async initHljs() {
 		if (this.hljs) return;
 
+		const token = this.token;
 		const hljsPath = getHljsPath(this);
 		try {
 			const hljs = (await import(hljsPath.get_uri())) as { default: HLJSApi };
+			if (this.isCancelled(token)) return;
+
 			this.hljs = hljs.default;
 
 			// Disable file monitor
-			this.hljsMonitor?.cancel();
-			this.hljsMonitor = undefined;
+			this.hljsFileMonitor?.cancel();
+			this.hljsFileMonitor = undefined;
 
 			// Initialize extra languages
 			await this.loadHljsLanguages();
+			if (this.isCancelled(token)) return;
 
 			// Notify dependents
 			this.hljsCallbacks?.forEach((fn) => fn());
 			this.hljsCallbacks = undefined;
 		} catch {
+			if (this.isCancelled(token)) return;
+
 			this.hljs = null;
 
 			// Automatically load highlight.js
-			if (!this.hljsMonitor) {
-				this.hljsMonitor = hljsPath.monitor(Gio.FileMonitorFlags.NONE, null);
-				this.hljsMonitor.connectObject(
+			if (!this.hljsFileMonitor) {
+				this.hljsFileMonitor = hljsPath.monitor(Gio.FileMonitorFlags.NONE, null);
+				this.hljsFileMonitor.connectObject(
 					'changed',
 					async (_monitor: unknown, _file: unknown, _otherFile: unknown, eventType: Gio.FileMonitorEvent) => {
 						if (eventType === Gio.FileMonitorEvent.CHANGES_DONE_HINT) {
@@ -222,12 +260,13 @@ export default class CopyousExtension extends Extension {
 	}
 
 	private async loadHljsLanguages() {
+		const token = this.token;
 		this.hljsLanguages ??= new Map<string, boolean>();
 
-		if (!this.hljsMonitor) {
+		if (!this.hljsLanguagesMonitor) {
 			const path = getDataPath(this).get_child('languages');
-			this.hljsMonitor = path.monitor_directory(Gio.FileMonitorFlags.NONE, null);
-			this.hljsMonitor.connectObject(
+			this.hljsLanguagesMonitor = path.monitor_directory(Gio.FileMonitorFlags.NONE, null);
+			this.hljsLanguagesMonitor.connectObject(
 				'changed',
 				async (_monitor: unknown, _file: unknown, _otherFile: unknown, eventType: Gio.FileMonitorEvent) => {
 					if (
@@ -241,23 +280,27 @@ export default class CopyousExtension extends Extension {
 			);
 		}
 
-		const languages = getHljsLanguages(this);
+		const installed = await getInstalledHljsLanguages(this);
+		if (this.isCancelled(token)) return;
+
+		const files = new Map(installed);
+
+		// Drop the languages whose file disappeared since the last pass
+		for (const [name, enabled] of this.hljsLanguages) {
+			if (enabled && !files.has(name)) {
+				this.hljs?.unregisterLanguage(name);
+				this.hljsLanguages.set(name, false);
+			}
+		}
+
 		await Promise.all(
-			languages.map(async ([name, _language, _hash, path]) => {
-				const enabled = this.hljsLanguages?.get(name) ?? false;
-
-				if (!path.query_exists(null)) {
-					if (enabled) {
-						this.hljs?.unregisterLanguage(name);
-						this.hljsLanguages?.set(name, false);
-					}
-					return;
-				}
-
-				if (enabled) return;
+			installed.map(async ([name, path]) => {
+				if (this.hljsLanguages?.get(name)) return;
 
 				try {
 					const language = (await import(path.get_uri())) as { default: LanguageFn };
+					if (this.isCancelled(token)) return;
+
 					this.hljs?.registerLanguage(name, language.default);
 					this.hljsLanguages?.set(name, true);
 				} catch {
@@ -293,10 +336,20 @@ export default class CopyousExtension extends Extension {
 	}
 
 	private async doInitEntryTracker() {
-		if (!this.entryTracker) return;
+		const token = this.token;
+		const entryTracker = this.entryTracker;
+		if (!entryTracker) return;
 
 		this.clipboardDialog?.clearEntries();
-		const entries = await this.entryTracker.init();
+		const entries = await entryTracker.init();
+
+		// `disable()` runs while the database is still opening on a fast lock/unlock cycle. It has
+		// already destroyed a tracker that had no connection yet, so close the one that just opened
+		// here instead of leaving it - and its Gda connection - behind.
+		if (this.isCancelled(token)) {
+			await entryTracker.destroy();
+			return;
+		}
 
 		// Building one St actor per entry is what froze the session on login with a large history.
 		// Spread it over idle callbacks at low priority so the shell keeps drawing frames, and stop
@@ -398,6 +451,11 @@ export default class CopyousExtension extends Extension {
 	}
 
 	override disable() {
+		// Stop the work `enable()` started: anything still awaiting bails out instead of installing
+		// itself into an extension that no longer exists.
+		this.cancellable?.cancel();
+		this.cancellable = undefined;
+
 		// UI
 		this.clipboardDialog?.disconnectObject(this);
 		this.clipboardDialog?.destroy();
@@ -408,9 +466,12 @@ export default class CopyousExtension extends Extension {
 
 		// Highlight.js
 		this.hljs = undefined;
-		this.hljsMonitor?.disconnectObject(this);
-		this.hljsMonitor?.cancel();
-		this.hljsMonitor = undefined;
+		this.hljsFileMonitor?.disconnectObject(this);
+		this.hljsFileMonitor?.cancel();
+		this.hljsFileMonitor = undefined;
+		this.hljsLanguagesMonitor?.disconnectObject(this);
+		this.hljsLanguagesMonitor?.cancel();
+		this.hljsLanguagesMonitor = undefined;
 		this.hljsLanguages = undefined;
 		this.hljsCallbacks = undefined;
 
