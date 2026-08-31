@@ -113,7 +113,7 @@ export class ClipboardItemMenu extends PopupMenu.PopupMenu<ClipboardItemMenuSign
 		this.addMenuItem(this._pasteHtmlSection);
 
 		const pasteHtmlItem = new PopupMenu.PopupBaseMenuItem();
-		const pasteHtmlLabel = new St.Label({ text: _('Paste with formatting') });
+		const pasteHtmlLabel = new St.Label({ text: _('Paste with Formatting') });
 		pasteHtmlItem.add_child(pasteHtmlLabel);
 		pasteHtmlItem.connect('activate', () => {
 			if (this._entry && this._entry.type === ItemType.Text) {

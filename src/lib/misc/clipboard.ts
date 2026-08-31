@@ -205,25 +205,30 @@ export class ClipboardManager extends GObject.Object {
 
 	public pasteContent(content: ClipboardContent) {
 		this.copyContent(content);
+		this.synthesizePaste();
+	}
 
+	/**
+	 * Sends the configured paste shortcut to whatever holds the keyboard focus.
+	 *
+	 * The delay gives the compositor time to hand the focus back after the dialog closes; the
+	 * keyboard is created here rather than in the constructor because building the virtual input
+	 * device during shell startup crashes gnome-shell.
+	 */
+	private synthesizePaste() {
 		const pasteMethod = this.ext.settings.get_enum('paste-method');
-
-		// If paste method is disabled, don't synthesize any keys
-		if (pasteMethod === PasteMethod.Disabled) {
-			return;
-		}
+		if (pasteMethod === PasteMethod.Disabled) return;
 
 		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
 		this.pasteSignalId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-			// Creating the virtual input device crashes gnome-shell when it happens while the shell is
-			// still starting up, so the keyboard is only created once a paste is actually performed.
 			this.keyboard ??= new Keyboard();
 			const keyboard = this.keyboard;
+			const terminal = this.isTerminal(keyboard);
 
 			if (pasteMethod === PasteMethod.CtrlV) {
-				// Use Ctrl+V (default) - works with Electron terminals, Alacritty, Ghostty
-				// Ctrl+Shift+V in terminal mode for applications that need it
-				if (this.isTerminal(keyboard)) {
+				// v is alphanumeric, so a modifier that fails to reach the application inserts a
+				// stray character instead of toggling the caret mode the way a bare Insert does.
+				if (terminal) {
 					keyboard.press(Clutter.KEY_Control_L);
 					keyboard.press(Clutter.KEY_Shift_R);
 					keyboard.press(Clutter.KEY_v);
@@ -237,9 +242,7 @@ export class ClipboardManager extends GObject.Object {
 					keyboard.release(Clutter.KEY_Control_L);
 				}
 			} else if (pasteMethod === PasteMethod.ShiftInsert) {
-				// Use Shift+Insert (legacy behavior)
-				// Ctrl+Shift+Insert in terminal mode
-				if (this.isTerminal(keyboard)) {
+				if (terminal) {
 					keyboard.press(Clutter.KEY_Control_L);
 					keyboard.press(Clutter.KEY_Shift_R);
 					keyboard.press(Clutter.KEY_Insert);
@@ -268,34 +271,18 @@ export class ClipboardManager extends GObject.Object {
 		this.pasteContent({ type: ContentType.Text, text: s });
 	}
 
+	/**
+	 * Puts the stored HTML on the clipboard and pastes it.
+	 *
+	 * Only one target can be published at a time - Mutter's selection API takes a single mimetype,
+	 * and Meta.SelectionSource cannot be subclassed from GJS because read_async takes a callback
+	 * ("VFunc read_async accepts another callback as a parameter. This is not supported"). So this
+	 * publishes text/html alone, which is what applications that understand formatting will read.
+	 */
 	public pasteHtml(htmlContent: string) {
-		const bytes = Utf8Encoder.encode(htmlContent);
-		this.clipboard.set_content(St.ClipboardType.CLIPBOARD, 'text/html', bytes);
-
-		// Synthesize paste keystrokes after a short delay to ensure content is available
-		if (this.pasteSignalId >= 0) GLib.source_remove(this.pasteSignalId);
-		this.pasteSignalId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 250, () => {
-			this.keyboard ??= new Keyboard();
-			const keyboard = this.keyboard;
-			const pasteMethod = this.ext.settings.get_enum('paste-method');
-
-			if (pasteMethod === PasteMethod.CtrlV) {
-				// Use Ctrl+V with HTML-aware applications
-				keyboard.press(Clutter.KEY_Control_L);
-				keyboard.press(Clutter.KEY_v);
-				keyboard.release(Clutter.KEY_v);
-				keyboard.release(Clutter.KEY_Control_L);
-			} else if (pasteMethod === PasteMethod.ShiftInsert) {
-				// Use Shift+Insert as fallback
-				keyboard.press(Clutter.KEY_Shift_L);
-				keyboard.press(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Insert);
-				keyboard.release(Clutter.KEY_Shift_L);
-			}
-
-			this.pasteSignalId = -1;
-			return GLib.SOURCE_REMOVE;
-		});
+		this.prevClipboard = null;
+		this.clipboard.set_content(St.ClipboardType.CLIPBOARD, 'text/html', Utf8Encoder.encode(htmlContent));
+		this.synthesizePaste();
 	}
 
 	public copyPng(data: Uint8Array, width: number, height: number) {
