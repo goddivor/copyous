@@ -360,8 +360,10 @@ export default class CopyousExtension extends Extension {
 		if (!this.clipboardManager) return;
 
 		if (!this.cycleEntries) {
+			// Index 0 is the entry already on the clipboard, so a cycle starts there and the first
+			// press moves off it. Starting at -1 would have spent a press re-copying what is current.
 			this.cycleEntries = this.entryTracker?.entries ?? [];
-			this.cycleIndex = -1;
+			this.cycleIndex = 0;
 		}
 
 		const entries = this.cycleEntries;
