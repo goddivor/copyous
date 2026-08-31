@@ -165,6 +165,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		for (const child of this.get_children()) {
 			if (child instanceof ClipboardItem) {
 				focus ||= child.has_key_focus();
+				child.disconnectObject(this);
 				this.remove_child(child);
 			}
 		}
@@ -185,6 +186,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			newFocus = get_next_visible_sibling(child) ?? get_previous_visible_sibling(child);
 		}
 
+		child.disconnectObject(this);
 		this.remove_child(child);
 		this.updateVisible();
 
