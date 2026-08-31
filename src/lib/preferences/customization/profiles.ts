@@ -27,6 +27,7 @@ type ChildKeyMap = {
 	[ChildKeys.FileItem]: Extract<ValueOf<typeof Settings.FileItem>, string>;
 	[ChildKeys.LinkItem]: Extract<ValueOf<typeof Settings.LinkItem>, string>;
 	[ChildKeys.CharacterItem]: Extract<ValueOf<typeof Settings.CharacterItem>, string>;
+	[ChildKeys.ItemColors]: Extract<ValueOf<typeof Settings.ItemColors>, string>;
 	[ChildKeys.Theme]: Extract<ValueOf<typeof Settings.Theme>, string>;
 };
 

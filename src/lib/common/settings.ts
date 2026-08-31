@@ -99,6 +99,17 @@ export const Settings = {
 		ShowUnicode: 'show-unicode',
 	},
 
+	ItemColors: {
+		Text: 'text',
+		Code: 'code',
+		Image: 'image',
+		File: 'file',
+		Files: 'files',
+		Link: 'link',
+		Character: 'character',
+		Color: 'color',
+	},
+
 	Theme: {
 		Theme: 'theme',
 		ColorScheme: 'color-scheme',
@@ -139,6 +150,7 @@ export const ChildKeys = {
 	FileItem: 'file-item',
 	LinkItem: 'link-item',
 	CharacterItem: 'character-item',
+	ItemColors: 'item-colors',
 	Theme: 'theme',
 } as const;
 
@@ -262,6 +274,17 @@ export const SettingsTypes = {
 	[ChildKeys.CharacterItem]: {
 		[Settings.CharacterItem.MaxCharacters]: 'int',
 		[Settings.CharacterItem.ShowUnicode]: 'boolean',
+	},
+
+	[ChildKeys.ItemColors]: {
+		[Settings.ItemColors.Text]: 'string',
+		[Settings.ItemColors.Code]: 'string',
+		[Settings.ItemColors.Image]: 'string',
+		[Settings.ItemColors.File]: 'string',
+		[Settings.ItemColors.Files]: 'string',
+		[Settings.ItemColors.Link]: 'string',
+		[Settings.ItemColors.Character]: 'string',
+		[Settings.ItemColors.Color]: 'string',
 	},
 
 	[ChildKeys.Theme]: {
@@ -461,6 +484,8 @@ type SettingsEnumTypes = {
 
 	[ChildKeys.CharacterItem]: object;
 
+	[ChildKeys.ItemColors]: object;
+
 	[ChildKeys.Theme]: {
 		[Settings.Theme.Theme]: Theme;
 		[Settings.Theme.ColorScheme]: ColorScheme;
@@ -538,6 +563,11 @@ export type CharacterItemSettings = TypedSettings<
 	SettingsEnumTypes['character-item']
 >;
 
+export type ItemColorsSettings = TypedSettings<(typeof SettingsTypes)['item-colors'], SettingsEnumTypes['item-colors']>;
+
+/** Key of the color setting of a single item type. */
+export type ItemColorKey = (typeof Settings.ItemColors)[keyof typeof Settings.ItemColors];
+
 export type ThemeSettings = TypedSettings<(typeof SettingsTypes)['theme'], SettingsEnumTypes['theme']>;
 
 export interface CopyousSettings extends TypedSettings<typeof SettingsTypes, SettingsEnumTypes> {
@@ -547,6 +577,7 @@ export interface CopyousSettings extends TypedSettings<typeof SettingsTypes, Set
 	get_child(name: typeof ChildKeys.FileItem): FileItemSettings;
 	get_child(name: typeof ChildKeys.LinkItem): LinkItemSettings;
 	get_child(name: typeof ChildKeys.CharacterItem): CharacterItemSettings;
+	get_child(name: typeof ChildKeys.ItemColors): ItemColorsSettings;
 	get_child(name: typeof ChildKeys.Theme): ThemeSettings;
 }
 
