@@ -122,8 +122,31 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		// the previous items were cleared, which is what made pinned and tagged entries multiply.
 		if (this.findItem(item.entry.id)) return;
 
-		this.insertOrMoveItem(item);
+		this.insertOrMoveItem(item, true, true);
+		this.setupItemHandlers(item);
+	}
 
+	/**
+	 * Add an item in batch mode (does not update visibility immediately).
+	 * Must be followed by finishBatch() to update visibility.
+	 */
+	public addItemBatch(item: ClipboardItem): void {
+		// An entry must never be shown twice. A duplicate means the history was loaded again before
+		// the previous items were cleared, which is what made pinned and tagged entries multiply.
+		if (this.findItem(item.entry.id)) return;
+
+		this.insertOrMoveItem(item, true, false);
+		this.setupItemHandlers(item);
+	}
+
+	/**
+	 * Finish batch loading and update visibility for all queued items.
+	 */
+	public finishBatch(): void {
+		this.updateVisible();
+	}
+
+	private setupItemHandlers(item: ClipboardItem): void {
 		// The handlers are owned by the item so they are dropped together with it, both when the item
 		// is destroyed and when it is removed from the container.
 		item.entry.connectObject(
@@ -160,7 +183,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		return null;
 	}
 
-	private insertOrMoveItem(item: ClipboardItem, search: boolean = true): void {
+	private insertOrMoveItem(item: ClipboardItem, search: boolean = true, updateVisibility: boolean = true): void {
 		this.removePseudoclasses();
 
 		if (item.get_parent() === this) this.remove_child(item);
@@ -177,6 +200,8 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		if (i === this.get_n_children()) {
 			this.add_child(item);
 		}
+
+		if (!updateVisibility) return;
 
 		if (search && this._lastQuery) {
 			this.updateSearch(item);

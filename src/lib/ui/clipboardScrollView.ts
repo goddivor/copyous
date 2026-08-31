@@ -82,6 +82,21 @@ export class ClipboardScrollView extends St.ScrollView {
 		this._scrollContainer.addItem(item);
 	}
 
+	/**
+	 * Add an item in batch mode (does not update visibility immediately).
+	 * Must be followed by finishBatch() to update visibility.
+	 */
+	public addItemBatch(item: ClipboardItem) {
+		this._scrollContainer.addItemBatch(item);
+	}
+
+	/**
+	 * Finish batch loading and update visibility for all queued items.
+	 */
+	public finishBatch() {
+		this._scrollContainer.finishBatch();
+	}
+
 	public clearItems() {
 		this._scrollContainer.clearItems();
 	}

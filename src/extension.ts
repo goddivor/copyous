@@ -283,8 +283,31 @@ export default class CopyousExtension extends Extension {
 
 		this.clipboardDialog?.clearEntries();
 		const entries = await this.entryTracker.init();
-		for (const entry of entries) {
-			this.clipboardDialog?.addEntry(entry);
+
+		// Load entries in batches via idle callbacks to avoid blocking the main loop.
+		// Batch size is tuned to keep frames responsive while minimizing callback overhead.
+		const batchSize = 10;
+		let index = 0;
+
+		const loadBatch = () => {
+			const end = Math.min(index + batchSize, entries.length);
+			for (; index < end; index++) {
+				const entry = entries[index]!;
+				this.clipboardDialog?.addEntryBatch(entry);
+			}
+
+			if (index < entries.length) {
+				GLib.idle_add(GLib.PRIORITY_LOW, loadBatch);
+				return GLib.SOURCE_REMOVE;
+			}
+
+			// Finish batch loading after all entries are queued
+			this.clipboardDialog?.finishBatchLoadEntries();
+			return GLib.SOURCE_REMOVE;
+		};
+
+		if (entries.length > 0) {
+			GLib.idle_add(GLib.PRIORITY_LOW, loadBatch);
 		}
 	}
 
