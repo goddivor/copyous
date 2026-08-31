@@ -24,7 +24,9 @@ class ColorRow extends Adw.ActionRow {
 
 		this._colorButton = new Gtk.ColorDialogButton({
 			valign: Gtk.Align.CENTER,
-			dialog: new Gtk.ColorDialog(),
+			// Stated rather than left to the GTK default, because a translucent background is what
+			// makes a blurred backdrop from another extension visible behind the dialog.
+			dialog: new Gtk.ColorDialog({ with_alpha: true }),
 		});
 		this.add_suffix(this._colorButton);
 		this.activatable_widget = this._colorButton;

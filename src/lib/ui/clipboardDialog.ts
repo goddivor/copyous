@@ -278,6 +278,10 @@ export class ClipboardDialog extends St.Widget {
 
 	constructor(private ext: CopyousExtension) {
 		super({
+			// Named so other extensions can find the dialog. Blur My Shell and similar look actors up
+			// by name; without one there is no stable handle on this widget from the outside.
+			name: 'copyous-dialog-container',
+			style_class: 'clipboard-dialog-container',
 			layout_manager: new Clutter.BinLayout(),
 			x_align: Clutter.ActorAlign.FILL,
 			y_align: Clutter.ActorAlign.FILL,
@@ -294,6 +298,7 @@ export class ClipboardDialog extends St.Widget {
 
 		// Dialog
 		this._dialog = new St.BoxLayout({
+			name: 'copyous-dialog',
 			orientation: Clutter.Orientation.VERTICAL,
 			style_class: 'clipboard-dialog horizontal',
 			x_align: Clutter.ActorAlign.FILL,
