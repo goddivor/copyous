@@ -10,7 +10,13 @@ import { Color } from '../../common/color.js';
 import { ActiveState, ItemType } from '../../common/constants.js';
 import { flagsParamSpec, registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { ItemColorKey, ItemColorsSettings, MiddleClickAction, Settings } from '../../common/settings.js';
+import {
+	ItemColorKey,
+	ItemColorsSettings,
+	MiddleClickAction,
+	Settings,
+	getChildSettings,
+} from '../../common/settings.js';
 import { ClipboardEntry } from '../../database/database.js';
 import { VERSION } from '../../misc/compatibility.js';
 import { Shortcut } from '../../misc/shortcuts.js';
@@ -114,7 +120,7 @@ export class ClipboardItem extends St.Button {
 			GObject.BindingFlags.BIDIRECTIONAL | GObject.BindingFlags.SYNC_CREATE,
 		);
 
-		this._itemColorsSettings = this.ext.settings.get_child('item-colors');
+		this._itemColorsSettings = getChildSettings(this.ext.settings, 'item-colors');
 		this._itemColorsSettings.connectObject(
 			`changed::${ItemColorKeys[this.entry.type]}`,
 			this.updateItemColor.bind(this),

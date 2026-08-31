@@ -266,6 +266,12 @@ export class SearchEntry extends St.Entry {
 	private _tag: Tag | null = null;
 	private _type: ItemType | null = null;
 
+	// The search query is rebuilt on every `notify::text`, so reading these two from GSettings there
+	// meant two DConf lookups per keystroke. They are cached and refreshed from the `changed::`
+	// handlers that were already connected below.
+	private _excludePinned: boolean;
+	private _excludeTagged: boolean;
+
 	private readonly _icons: { [type in ItemType | 'search']: Gio.Icon };
 	private readonly _itemButton: St.Button;
 	private readonly _menu: ItemPopupMenu;
@@ -369,11 +375,20 @@ export class SearchEntry extends St.Entry {
 		// Bind properties
 		pinButton.bind_property('checked', this, 'pinned', GObject.BindingFlags.BIDIRECTIONAL);
 
+		this._excludePinned = ext.settings.get_boolean('exclude-pinned');
+		this._excludeTagged = ext.settings.get_boolean('exclude-tagged');
+
 		this.ext.settings.connectObject(
 			'changed::exclude-pinned',
-			this.search.bind(this),
+			() => {
+				this._excludePinned = this.ext.settings.get_boolean('exclude-pinned');
+				this.search();
+			},
 			'changed::exclude-tagged',
-			this.search.bind(this),
+			() => {
+				this._excludeTagged = this.ext.settings.get_boolean('exclude-tagged');
+				this.search();
+			},
 			this,
 		);
 
@@ -418,8 +433,8 @@ export class SearchEntry extends St.Entry {
 	}
 
 	get searchQuery(): SearchQuery {
-		const excludePinned = this.ext.settings.get_boolean('exclude-pinned');
-		const excludeTagged = this.ext.settings.get_boolean('exclude-tagged');
+		const excludePinned = this._excludePinned;
+		const excludeTagged = this._excludeTagged;
 		const query = this.text;
 
 		let change: SearchChange;

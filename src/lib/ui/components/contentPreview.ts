@@ -11,7 +11,7 @@ import type CopyousExtension from '../../../extension.js';
 import { ActiveState } from '../../common/constants.js';
 import { enumParamSpec, flagsParamSpec, registerClass } from '../../common/gjs.js';
 import { Icon, loadIcon } from '../../common/icons.js';
-import { BackgroundSize, FilePreviewType } from '../../common/settings.js';
+import { BackgroundSize, FilePreviewType, getChildSettings } from '../../common/settings.js';
 import { CodeLabel, CodeLabelConstructorProps } from './codeLabel.js';
 
 export const FileType = {
@@ -299,7 +299,7 @@ export async function tryCreateFilePreview(
 	fileType: FileType,
 	thumbnail: Gio.File | null,
 ): Promise<ContentPreview | null> {
-	const allowedTypes = ext.settings.get_child('file-item').get_flags('file-preview-types');
+	const allowedTypes = getChildSettings(ext.settings, 'file-item').get_flags('file-preview-types');
 
 	try {
 		if (!file.query_exists(null)) return null;

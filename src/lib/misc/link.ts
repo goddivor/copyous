@@ -1,6 +1,6 @@
 import GLib from 'gi://GLib';
 import Gio from 'gi://Gio';
-import Soup from 'gi://Soup';
+import type Soup from 'gi://Soup';
 
 import { Extension } from 'resource:///org/gnome/shell/extensions/extension.js';
 
@@ -10,10 +10,26 @@ import { LinkMetadata } from '../database/database.js';
 
 import OutputStreamSpliceFlags = Gio.OutputStreamSpliceFlags;
 
-Gio._promisify(Soup.Session.prototype, 'send_async');
 Gio._promisify(Gio.File.prototype, 'replace_async');
 Gio._promisify(Gio.File.prototype, 'replace_contents_async');
 Gio._promisify(Gio.OutputStream.prototype, 'splice_async');
+
+let soup: typeof Soup | undefined;
+
+/**
+ * Loads the Soup typelib on first use.
+ *
+ * This module is pulled in by the entry tracker for `getLinkImagePath()` alone, so a static import
+ * made every activation load Soup even for a history without a single link in it.
+ */
+async function loadSoup(): Promise<typeof Soup> {
+	if (!soup) {
+		soup = (await import('gi://Soup')).default;
+		Gio._promisify(soup.Session.prototype, 'send_async');
+	}
+
+	return soup;
+}
 
 export async function tryGetMetadata(
 	ext: CopyousExtension,
@@ -28,8 +44,9 @@ export async function tryGetMetadata(
 		const uri = GLib.uri_parse(url, GLib.UriFlags.NONE);
 
 		// Create request
-		session = new Soup.Session({ user_agent: UserAgent, idle_timeout: 5 });
-		const message = Soup.Message.new_from_uri('GET', uri);
+		const soupLib = await loadSoup();
+		session = new soupLib.Session({ user_agent: UserAgent, idle_timeout: 5 });
+		const message = soupLib.Message.new_from_uri('GET', uri);
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept
 		message.request_headers.append('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
 
@@ -183,8 +200,9 @@ export async function tryGetLinkImage(
 		if (imagePath.query_exists(cancellable)) return imagePath;
 
 		// Otherwise download image
-		session = new Soup.Session({ user_agent: UserAgent, idle_timeout: 5 });
-		const message = Soup.Message.new_from_uri('GET', uri);
+		const soupLib = await loadSoup();
+		session = new soupLib.Session({ user_agent: UserAgent, idle_timeout: 5 });
+		const message = soupLib.Message.new_from_uri('GET', uri);
 		// https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Accept
 		message.request_headers.append(
 			'Accept',

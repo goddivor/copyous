@@ -6,6 +6,9 @@ import type { Extension } from 'resource:///org/gnome/shell/extensions/extension
 
 import { DatabaseBackend } from './settings.js';
 
+Gio._promisify(Gio.File.prototype, 'enumerate_children_async');
+Gio._promisify(Gio.FileEnumerator.prototype, 'next_files_async');
+
 export const ItemType = {
 	Text: 'Text',
 	Code: 'Code',
@@ -338,6 +341,60 @@ export function getHljsLanguages(ext: Extension | ExtensionPreferences): [string
 		if (sysFile.query_exists(null)) return [language, name, hash, sysFile, true];
 		return [language, name, hash, path.get_child(`${language}.min.js`), false];
 	});
+}
+
+/**
+ * Get the highlight.js language files that are actually installed.
+ *
+ * `getHljsLanguages()` stats every one of the ~190 known languages - up to two synchronous
+ * `query_exists()` calls each - which put ~380 `stat()` calls on the activation path. This lists the
+ * two directories asynchronously instead, so the cost is two enumerations off the main loop and the
+ * answer is the same: the system install wins over the local one, and a language with no file is
+ * simply absent from the result.
+ * @param ext The extension or preferences
+ * @returns A list of language id and the file to load it from
+ */
+export async function getInstalledHljsLanguages(ext: Extension | ExtensionPreferences): Promise<[string, Gio.File][]> {
+	const sysPath = ext.dir.get_child('languages');
+	const path = getDataPath(ext).get_child('languages');
+
+	const [sysNames, names] = await Promise.all([listFileNames(sysPath), listFileNames(path)]);
+
+	const installed: [string, Gio.File][] = [];
+	for (const [language] of HljsLanguages) {
+		const fileName = `${language}.min.js`;
+		if (sysNames.has(fileName)) installed.push([language, sysPath.get_child(fileName)]);
+		else if (names.has(fileName)) installed.push([language, path.get_child(fileName)]);
+	}
+
+	return installed;
+}
+
+/** Lists the names of the files in a directory, or nothing at all if it cannot be read. */
+async function listFileNames(directory: Gio.File): Promise<Set<string>> {
+	const names = new Set<string>();
+
+	try {
+		const enumerator = await directory.enumerate_children_async(
+			Gio.FILE_ATTRIBUTE_STANDARD_NAME,
+			Gio.FileQueryInfoFlags.NONE,
+			GLib.PRIORITY_LOW,
+			null,
+		);
+
+		for (;;) {
+			// eslint-disable-next-line no-await-in-loop
+			const infos = await enumerator.next_files_async(64, GLib.PRIORITY_LOW, null);
+			if (infos.length === 0) break;
+			for (const info of infos) names.add(info.get_name());
+		}
+
+		enumerator.close(null);
+	} catch {
+		// Directory does not exist or cannot be read: nothing is installed there.
+	}
+
+	return names;
 }
 
 export function getHljsLanguageUrls(language: string): string[] {

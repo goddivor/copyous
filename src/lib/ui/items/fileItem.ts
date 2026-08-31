@@ -11,7 +11,7 @@ import type CopyousExtension from '../../../extension.js';
 import { registerClass } from '../../common/gjs.js';
 import { globToRegex } from '../../common/glob.js';
 import { Icon } from '../../common/icons.js';
-import { FileItemSettings, FilePreviewType, FilePreviewVisibility } from '../../common/settings.js';
+import { FileItemSettings, FilePreviewType, FilePreviewVisibility, getChildSettings } from '../../common/settings.js';
 import { ClipboardEntry } from '../../database/database.js';
 import { ContentInfo, createFileInfo } from '../components/contentInfo.js';
 import {
@@ -51,7 +51,7 @@ export class FileItem extends ClipboardItem {
 	constructor(ext: CopyousExtension, entry: ClipboardEntry) {
 		super(ext, entry, Icon.File, _('File'));
 
-		this.fileItemSettings = this.ext.settings.get_child('file-item');
+		this.fileItemSettings = getChildSettings(this.ext.settings, 'file-item');
 
 		this.add_style_class_name('file-item');
 
