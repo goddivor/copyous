@@ -43,6 +43,7 @@ export default class CopyousExtension extends Extension {
 	private entryTracker: ClipboardEntryTracker | undefined;
 	private historyTimeoutId: number = -1;
 	private updateHistory: boolean = false;
+	private initEntryTrackerPromise: Promise<void> | undefined;
 
 	public clipboardManager: ClipboardManager | undefined;
 
@@ -260,7 +261,21 @@ export default class CopyousExtension extends Extension {
 	}
 
 	private async initEntryTracker() {
-		if (!this.entryTracker || !this.entryTracker.shouldInit) return;
+		if (!this.entryTracker) return;
+
+		// Serialize initialization: wait for any pending init to complete before starting a new one
+		if (this.initEntryTrackerPromise) {
+			await this.initEntryTrackerPromise;
+		}
+
+		// Create new initialization promise
+		this.initEntryTrackerPromise = this.doInitEntryTracker();
+		await this.initEntryTrackerPromise;
+		this.initEntryTrackerPromise = undefined;
+	}
+
+	private async doInitEntryTracker() {
+		if (!this.entryTracker) return;
 
 		this.clipboardDialog?.clearEntries();
 		const entries = await this.entryTracker.init();
@@ -327,8 +342,12 @@ export default class CopyousExtension extends Extension {
 
 		// Database
 		const error = this.logger.error.bind(this.logger);
-		this.entryTracker?.destroy().catch(error);
-		this.entryTracker = undefined;
+		// Ensure database is properly closed and flushed
+		try {
+			this.entryTracker?.destroy().catch(error);
+		} finally {
+			this.entryTracker = undefined;
+		}
 
 		if (this.historyTimeoutId >= 0) GLib.source_remove(this.historyTimeoutId);
 		this.historyTimeoutId = -1;
