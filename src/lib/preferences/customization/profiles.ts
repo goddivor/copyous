@@ -27,6 +27,7 @@ type ChildKeyMap = {
 	[ChildKeys.FileItem]: Extract<ValueOf<typeof Settings.FileItem>, string>;
 	[ChildKeys.LinkItem]: Extract<ValueOf<typeof Settings.LinkItem>, string>;
 	[ChildKeys.CharacterItem]: Extract<ValueOf<typeof Settings.CharacterItem>, string>;
+	[ChildKeys.ItemColors]: Extract<ValueOf<typeof Settings.ItemColors>, string>;
 	[ChildKeys.Theme]: Extract<ValueOf<typeof Settings.Theme>, string>;
 };
 
@@ -201,6 +202,44 @@ class CompactProfile extends Profile {
 	}
 }
 
+/**
+ * A dense, text only list.
+ *
+ * Nothing here needs settings the schema does not already allow: `dynamic-item-height` makes
+ * `item-height` a cap rather than a fixed size, so an item shrinks to the height of its content and
+ * the lower bound of the range is never reached. What the profile adds on top of Compact is the cap
+ * itself and turning off the previews and info rows, so that every entry takes the same one or two
+ * lines whatever its type.
+ */
+class ListProfile extends Profile {
+	protected override initProfile(): void {
+		this.addSetting(null, 'show-at-pointer', false);
+		this.addSetting(null, 'clipboard-orientation', Orientation.Vertical);
+		this.addSetting(null, 'clipboard-position-vertical', Position.Fill);
+		this.addSetting(null, 'clipboard-position-horizontal', Position.Center);
+		this.addSetting(null, 'clipboard-size', 700);
+		this.addSetting(null, 'auto-hide-search', false);
+		this.addSetting(null, 'item-width', 450);
+		this.addSetting(null, 'item-height', 50);
+		this.addSetting(null, 'dynamic-item-height', true);
+		this.addSetting(null, 'show-header', false);
+		this.addSetting(null, 'header-controls-visibility', HeaderControlsVisibility.VisibleOnHover);
+
+		this.addSetting('text-item', 'show-text-info', false);
+
+		this.addSetting('code-item', 'show-code-info', false);
+
+		this.addSetting('image-item', 'show-image-info', false);
+
+		this.addSetting('file-item', 'file-preview-visibility', FilePreviewVisibility.FileInfoOnly);
+
+		this.addSetting('link-item', 'show-link-preview', false);
+		this.addSetting('link-item', 'link-preview-orientation', Orientation.Horizontal);
+
+		this.addSetting('character-item', 'show-unicode', false);
+	}
+}
+
 @registerClass()
 export class Profiles extends Adw.PreferencesGroup {
 	constructor(prefs: Preferences) {
@@ -224,6 +263,12 @@ export class Profiles extends Adw.PreferencesGroup {
 		});
 		toggles.add(compactToggle);
 
+		const listToggle = new Adw.Toggle({
+			name: 'list',
+			label: _('List'),
+		});
+		toggles.add(listToggle);
+
 		const customToggle = new Adw.Toggle({
 			name: 'custom',
 			label: _('Custom'),
@@ -232,10 +277,12 @@ export class Profiles extends Adw.PreferencesGroup {
 
 		const defaultProfile = new DefaultProfile(prefs);
 		const compactProfile = new CompactProfile(prefs);
+		const listProfile = new ListProfile(prefs);
 
 		// Set current active profile
 		if (defaultProfile.active) toggles.set_active_name('default');
 		else if (compactProfile.active) toggles.set_active_name('compact');
+		else if (listProfile.active) toggles.set_active_name('list');
 		else toggles.set_active_name('custom');
 
 		// Update active profile
@@ -244,6 +291,8 @@ export class Profiles extends Adw.PreferencesGroup {
 				defaultProfile.activate();
 			} else if (toggles.active_name === 'compact' && !compactProfile.active) {
 				compactProfile.activate();
+			} else if (toggles.active_name === 'list' && !listProfile.active) {
+				listProfile.activate();
 			}
 		});
 
@@ -260,6 +309,14 @@ export class Profiles extends Adw.PreferencesGroup {
 			if (compactProfile.active) {
 				toggles.set_active_name('compact');
 			} else if (toggles.active_name === 'compact') {
+				toggles.set_active_name('custom');
+			}
+		});
+
+		listProfile.connectActive(() => {
+			if (listProfile.active) {
+				toggles.set_active_name('list');
+			} else if (toggles.active_name === 'list') {
 				toggles.set_active_name('custom');
 			}
 		});

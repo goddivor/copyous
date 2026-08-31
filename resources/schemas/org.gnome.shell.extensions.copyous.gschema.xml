@@ -359,6 +359,7 @@
 		<child name="file-item" schema="org.gnome.shell.extensions.copyous.file-item"/>
 		<child name="link-item" schema="org.gnome.shell.extensions.copyous.link-item"/>
 		<child name="character-item" schema="org.gnome.shell.extensions.copyous.character-item"/>
+		<child name="item-colors" schema="org.gnome.shell.extensions.copyous.item-colors"/>
 
 		<!-- Theme -->
 		<child name="theme" schema="org.gnome.shell.extensions.copyous.theme"/>
@@ -548,6 +549,41 @@
 		<key name="show-unicode" type="b">
 			<default>false</default>
 			<summary>Show the Unicode of the character</summary>
+		</key>
+	</schema>
+
+	<schema id="org.gnome.shell.extensions.copyous.item-colors" path="/org/gnome/shell/extensions/copyous/item-colors/">
+		<key name="text" type="s">
+			<default>''</default>
+			<summary>The color of text clipboard items</summary>
+		</key>
+		<key name="code" type="s">
+			<default>''</default>
+			<summary>The color of code clipboard items</summary>
+		</key>
+		<key name="image" type="s">
+			<default>''</default>
+			<summary>The color of image clipboard items</summary>
+		</key>
+		<key name="file" type="s">
+			<default>''</default>
+			<summary>The color of file clipboard items</summary>
+		</key>
+		<key name="files" type="s">
+			<default>''</default>
+			<summary>The color of files clipboard items</summary>
+		</key>
+		<key name="link" type="s">
+			<default>''</default>
+			<summary>The color of link clipboard items</summary>
+		</key>
+		<key name="character" type="s">
+			<default>''</default>
+			<summary>The color of character clipboard items</summary>
+		</key>
+		<key name="color" type="s">
+			<default>''</default>
+			<summary>The color of color clipboard items</summary>
 		</key>
 	</schema>
 

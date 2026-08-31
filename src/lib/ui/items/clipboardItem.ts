@@ -6,15 +6,32 @@ import Shell from 'gi://Shell';
 import St from 'gi://St';
 
 import type CopyousExtension from '../../../extension.js';
-import { ActiveState } from '../../common/constants.js';
+import { Color } from '../../common/color.js';
+import { ActiveState, ItemType } from '../../common/constants.js';
 import { flagsParamSpec, registerClass } from '../../common/gjs.js';
 import { Icon } from '../../common/icons.js';
-import { MiddleClickAction } from '../../common/settings.js';
+import { ItemColorKey, ItemColorsSettings, MiddleClickAction, Settings } from '../../common/settings.js';
 import { ClipboardEntry } from '../../database/database.js';
 import { VERSION } from '../../misc/compatibility.js';
 import { Shortcut } from '../../misc/shortcuts.js';
 import { SearchQuery } from '../searchEntry.js';
 import { ClipboardItemHeader } from './clipboardItemHeader.js';
+
+/** Setting key holding the user color of each item type. */
+const ItemColorKeys = {
+	[ItemType.Text]: Settings.ItemColors.Text,
+	[ItemType.Code]: Settings.ItemColors.Code,
+	[ItemType.Image]: Settings.ItemColors.Image,
+	[ItemType.File]: Settings.ItemColors.File,
+	[ItemType.Files]: Settings.ItemColors.Files,
+	[ItemType.Link]: Settings.ItemColors.Link,
+	[ItemType.Character]: Settings.ItemColors.Character,
+	[ItemType.Color]: Settings.ItemColors.Color,
+} as const satisfies Record<ItemType, ItemColorKey>;
+
+// The item color tints the box, which sits on top of the card. Above this opacity the card's own
+// hover, active and focus shading - drawn by the theme underneath - would no longer show through.
+const MAX_ITEM_COLOR_OPACITY = 0.5;
 
 @registerClass({
 	Properties: {
@@ -38,6 +55,10 @@ export class ClipboardItem extends St.Button {
 	private readonly _box: St.Widget;
 	private readonly _header: ClipboardItemHeader;
 	protected _content: St.BoxLayout;
+
+	private readonly _itemColorsSettings: ItemColorsSettings;
+	private _maxHeight: number | null = null;
+	private _colorStyle: string = '';
 
 	constructor(
 		protected ext: CopyousExtension,
@@ -93,6 +114,13 @@ export class ClipboardItem extends St.Button {
 			GObject.BindingFlags.BIDIRECTIONAL | GObject.BindingFlags.SYNC_CREATE,
 		);
 
+		this._itemColorsSettings = this.ext.settings.get_child('item-colors');
+		this._itemColorsSettings.connectObject(
+			`changed::${ItemColorKeys[this.entry.type]}`,
+			this.updateItemColor.bind(this),
+			this,
+		);
+
 		// prettier-ignore
 		this.ext.settings.connectObject(
 			'changed::item-width', this.updateSize.bind(this),
@@ -115,6 +143,7 @@ export class ClipboardItem extends St.Button {
 			GObject.BindingFlags.SYNC_CREATE,
 		);
 
+		this.updateItemColor();
 		this.updateSize();
 		this.updateProtection();
 		this.updateMiddleClickAction();
@@ -149,10 +178,48 @@ export class ClipboardItem extends St.Button {
 		const orientation = this.ext.settings.get_enum('clipboard-orientation');
 		if (dynamicHeight && orientation === Clutter.Orientation.VERTICAL) {
 			this.set_height(-1);
-			this.style = `max-height: ${height}px`;
+			this._maxHeight = height;
 		} else {
-			this.style = '';
+			this._maxHeight = null;
 		}
+
+		this.updateStyle();
+	}
+
+	/**
+	 * Applies the color the user picked for this item's type.
+	 *
+	 * The color is set inline instead of through the stylesheet because only the Custom and System
+	 * themes are built from a template whose variables are substituted at runtime; the Default and
+	 * Yaru themes ship precompiled CSS. An inline style is the only channel that reaches all four.
+	 *
+	 * The color outlines the card and tints its content box. The tint sits on the box rather than on
+	 * the card so the card keeps painting its own hover, active and focus states underneath.
+	 */
+	private updateItemColor() {
+		const value = this._itemColorsSettings.get_string(ItemColorKeys[this.entry.type]);
+		const color = value ? Color.parse(value)?.rgb() : null;
+
+		if (!color || color.alpha === 0) {
+			this._colorStyle = '';
+			this._box.style = '';
+		} else {
+			const r = Math.round(color.c1);
+			const g = Math.round(color.c2);
+			const b = Math.round(color.c3);
+			const opacity = Math.min(color.alpha, MAX_ITEM_COLOR_OPACITY);
+
+			this._colorStyle = `border-color: rgba(${r}, ${g}, ${b}, ${color.alpha});`;
+			this._box.style = `background-color: rgba(${r}, ${g}, ${b}, ${opacity});`;
+		}
+
+		this.updateStyle();
+	}
+
+	/** Rebuilds the inline style of the item from the parts that make it up. */
+	private updateStyle() {
+		const maxHeight = this._maxHeight === null ? '' : `max-height: ${this._maxHeight}px;`;
+		this.style = `${maxHeight}${this._colorStyle}`;
 	}
 
 	private updateProtection() {
@@ -302,6 +369,7 @@ export class ClipboardItem extends St.Button {
 
 	override destroy() {
 		this.ext.settings.disconnectObject(this);
+		this._itemColorsSettings.disconnectObject(this);
 
 		super.destroy();
 	}

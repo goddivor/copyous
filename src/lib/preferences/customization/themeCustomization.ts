@@ -16,7 +16,7 @@ import { makeResettable } from '../utils.js';
 		color: GObject.ParamSpec.string('color', null, null, GObject.ParamFlags.READWRITE, ''),
 	},
 })
-class ColorRow extends Adw.ActionRow {
+export class ColorRow extends Adw.ActionRow {
 	private readonly _colorButton: Gtk.ColorDialogButton;
 
 	constructor(props?: Partial<Adw.ActionRow.ConstructorProps>) {

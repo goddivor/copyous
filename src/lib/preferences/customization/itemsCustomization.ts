@@ -9,6 +9,7 @@ import { CharacterItemCustomization } from './items/characterItemCustomization.j
 import { CodeItemCustomization } from './items/codeItemCustomization.js';
 import { FileItemCustomization } from './items/fileItemCustomization.js';
 import { ImageItemCustomization } from './items/imageItemCustomization.js';
+import { ItemColorsCustomization } from './items/itemColorsCustomization.js';
 import { LinkItemCustomization } from './items/linkItemCustomization.js';
 import { TextItemCustomization } from './items/textItemCustomization.js';
 
@@ -31,6 +32,7 @@ export class ItemsCustomization extends Adw.PreferencesGroup {
 		this.add(file);
 		this.add(new LinkItemCustomization(prefs, window));
 		this.add(new CharacterItemCustomization(prefs));
+		this.add(new ItemColorsCustomization(prefs));
 
 		this.bind_property('hljs', code, 'sensitive', GObject.BindingFlags.SYNC_CREATE);
 		this.bind_property('hljs', file, 'hljs', GObject.BindingFlags.SYNC_CREATE);
