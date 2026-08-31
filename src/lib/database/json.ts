@@ -48,24 +48,53 @@ export class JsonDatabase extends MemoryDatabase {
 			return;
 		}
 
-		const [contents] = await this.file.load_contents_async(null);
-		const document = JSON.parse(new TextDecoder().decode(contents)) as JsonDatabaseModel;
+		try {
+			const [contents] = await this.file.load_contents_async(null);
+			const document = JSON.parse(new TextDecoder().decode(contents)) as JsonDatabaseModel;
 
-		for (const entry of document.entries) {
-			const clipboardEntry = new ClipboardEntry(
-				this._id++,
-				entry.type as ItemType,
-				entry.content,
-				entry.pinned,
-				entry.tag as Tag | null,
-				GLib.DateTime.new_from_iso8601(entry.datetime, GLib.TimeZone.new_utc()),
-				entry.metadata,
-				entry.title,
-			);
+			// Validate document structure
+			if (!document || typeof document !== 'object' || !Array.isArray(document.entries)) {
+				throw new Error('Invalid JSON database format: missing or invalid entries array');
+			}
 
-			const key = this.entryToKey(clipboardEntry);
-			this._entries.set(key, clipboardEntry);
-			this._keys.set(clipboardEntry.id, key);
+			// Refuse a file written by a newer version rather than dropping the fields it does not
+			// know about on the next save.
+			if (typeof document.version === 'number' && document.version > DATABASE_VERSION) {
+				throw new Error(
+					`Database version ${document.version} is newer than supported version ${DATABASE_VERSION}`,
+				);
+			}
+
+			for (const entry of document.entries) {
+				// Validate required fields
+				if (!entry.type || !entry.content || entry.pinned === undefined || !entry.datetime) {
+					continue; // Skip invalid entries
+				}
+
+				const datetime = GLib.DateTime.new_from_iso8601(entry.datetime, GLib.TimeZone.new_utc());
+				if (!datetime) {
+					continue; // Skip entries with invalid datetime
+				}
+
+				const clipboardEntry = new ClipboardEntry(
+					this._id++,
+					entry.type as ItemType,
+					entry.content,
+					entry.pinned,
+					entry.tag as Tag | null,
+					datetime,
+					entry.metadata,
+					entry.title,
+				);
+
+				const key = this.entryToKey(clipboardEntry);
+				this._entries.set(key, clipboardEntry);
+				this._keys.set(clipboardEntry.id, key);
+			}
+		} catch (error) {
+			// Fail the whole load so the caller can fall back instead of silently starting from an
+			// empty history and overwriting the file the user still has on disk.
+			throw new Error(`Failed to load JSON database: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 
@@ -76,7 +105,12 @@ export class JsonDatabase extends MemoryDatabase {
 	}
 
 	public override async close(): Promise<void> {
-		if (this._saveTimeoutId >= 0) GLib.source_remove(this._saveTimeoutId);
+		// Remove any pending save timeout
+		if (this._saveTimeoutId >= 0) {
+			GLib.source_remove(this._saveTimeoutId);
+			this._saveTimeoutId = -1;
+		}
+		// Force final flush to ensure all data is saved
 		await this.flush();
 	}
 

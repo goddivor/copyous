@@ -132,7 +132,6 @@ function async_statement_execute_select<T>(
 					}
 
 					i++;
-					cancellable.disconnect(cancellableId);
 					return GLib.SOURCE_CONTINUE;
 				} catch (error) {
 					reject(error as Error);
@@ -141,7 +140,13 @@ function async_statement_execute_select<T>(
 				}
 			});
 
-			const cancellableId = cancellable.connect(() => GLib.source_remove(timeoutId));
+			const cancellableId = cancellable.connect(() => {
+				try {
+					GLib.source_remove(timeoutId);
+				} catch {
+					// Source already removed, ignore
+				}
+			});
 		} else {
 			// Gda 6
 			GLib.idle_add(GLib.PRIORITY_HIGH, () => {
@@ -197,7 +202,6 @@ function async_statement_execute_non_select(
 					}
 
 					i++;
-					cancellable.disconnect(cancellableId);
 					return GLib.SOURCE_CONTINUE;
 				} catch (error) {
 					reject(error as Error);
@@ -206,7 +210,13 @@ function async_statement_execute_non_select(
 				}
 			});
 
-			const cancellableId = cancellable.connect(() => GLib.source_remove(timeoutId));
+			const cancellableId = cancellable.connect(() => {
+				try {
+					GLib.source_remove(timeoutId);
+				} catch {
+					// Source already removed, ignore
+				}
+			});
 		} else {
 			// Gda 6
 			GLib.idle_add(GLib.PRIORITY_HIGH, () => {
@@ -300,6 +310,11 @@ export class GdaDatabase implements Database {
 			await async_statement_execute_non_select(this._Gda, this._connection, addVersionStmt, this._cancellable);
 		}
 
+		// Reject if database version is newer than supported
+		if (version > DATABASE_VERSION) {
+			throw new Error(`Database version ${version} is newer than supported version ${DATABASE_VERSION}`);
+		}
+
 		// Run migrations based on version
 		switch (version) {
 			case 0: {
@@ -331,8 +346,15 @@ export class GdaDatabase implements Database {
 						addColumnStmt,
 						this._cancellable,
 					);
-				} catch {
-					// Ignore
+				} catch (error) {
+					// Check if column already exists (expected case)
+					const errorMsg = (error as Error).message || '';
+					if (!errorMsg.includes('duplicate column name') && !errorMsg.includes('already exists')) {
+						// Real error, not just column already existing
+						this.ext.logger.error('Failed to add title column during migration', error);
+						throw error;
+					}
+					// Column already exists, migration succeeds
 				}
 			}
 		}
@@ -380,9 +402,18 @@ export class GdaDatabase implements Database {
 				deleteBuilder.set_table('clipboard');
 
 				if (where) {
-					deleteBuilder.set_where(
-						deleteBuilder.import_expression_from_builder(selectBuilder as Gda.SqlBuilder, where),
+					const whereId = deleteBuilder.import_expression_from_builder(
+						selectBuilder as Gda.SqlBuilder,
+						where,
 					);
+					if (!whereId) {
+						// Without the imported expression the statement would delete every row, pinned
+						// and tagged entries included. Report nothing as deleted so the dialog keeps
+						// showing the entries that are still in the database.
+						this.ext.logger.error('Failed to import WHERE expression for DELETE statement');
+						return [];
+					}
+					deleteBuilder.set_where(whereId);
 				}
 
 				const deleteStmt = deleteBuilder.get_statement();

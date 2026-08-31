@@ -43,6 +43,7 @@ export default class CopyousExtension extends Extension {
 	private entryTracker: ClipboardEntryTracker | undefined;
 	private historyTimeoutId: number = -1;
 	private updateHistory: boolean = false;
+	private initEntryTrackerPromise: Promise<void> = Promise.resolve();
 
 	public clipboardManager: ClipboardManager | undefined;
 
@@ -132,9 +133,9 @@ export default class CopyousExtension extends Extension {
 
 		this.settings.connectObject(
 			'changed::database-location',
-			this.initEntryTracker.bind(this),
+			this.reinitEntryTracker.bind(this),
 			'changed::database-backend',
-			this.initEntryTracker.bind(this),
+			this.reinitEntryTracker.bind(this),
 			'changed::history-time',
 			this.initHistoryTimeout.bind(this),
 			this,
@@ -259,8 +260,26 @@ export default class CopyousExtension extends Extension {
 		this.hljsCallbacks.push(fn);
 	}
 
-	private async initEntryTracker() {
-		if (!this.entryTracker || !this.entryTracker.shouldInit) return;
+	private reinitEntryTracker() {
+		// `init()` writes `database-backend` when it resolves the default backend, which fires this
+		// handler right back. Reloading then would read the whole history a second time.
+		if (this.entryTracker?.matchesSettings()) return;
+
+		this.initEntryTracker().catch(this.logger.error.bind(this.logger));
+	}
+
+	private initEntryTracker(): Promise<void> {
+		// Chain onto the pending initialization instead of racing it. Two concurrent runs would each
+		// clear the dialog and then append the full history, which is what multiplied the entries.
+		this.initEntryTrackerPromise = this.initEntryTrackerPromise
+			.catch(() => undefined)
+			.then(() => this.doInitEntryTracker());
+
+		return this.initEntryTrackerPromise;
+	}
+
+	private async doInitEntryTracker() {
+		if (!this.entryTracker) return;
 
 		this.clipboardDialog?.clearEntries();
 		const entries = await this.entryTracker.init();
@@ -329,6 +348,7 @@ export default class CopyousExtension extends Extension {
 		const error = this.logger.error.bind(this.logger);
 		this.entryTracker?.destroy().catch(error);
 		this.entryTracker = undefined;
+		this.initEntryTrackerPromise = Promise.resolve();
 
 		if (this.historyTimeoutId >= 0) GLib.source_remove(this.historyTimeoutId);
 		this.historyTimeoutId = -1;
