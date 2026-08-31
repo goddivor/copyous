@@ -107,6 +107,18 @@ check-po:
 # Copy metadata
 VERSION ?= $(shell git describe --tags --dirty | sed -E 's/^v//;s/-g([0-9a-f]{7})/+\1/')
 
+# Append the branch name to development builds so the installed build can be identified in the
+# preferences window. Release builds and detached HEADs (the state a tag is built from) keep the
+# plain version.
+ifneq ($(RELEASE),1)
+BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+ifeq ($(filter main master HEAD,$(BRANCH)),)
+ifneq ($(BRANCH),)
+VERSION := $(VERSION) ($(BRANCH))
+endif
+endif
+endif
+
 $(DIST_DIR)/metadata.json: resources/metadata.json | $(DIST_DIR)
 	jq '."version-name" = "$(VERSION)"' $< > $@
 
