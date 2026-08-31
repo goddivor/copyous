@@ -88,7 +88,7 @@ export default class CopyousExtension extends Extension {
 		this.indicator = new ClipboardIndicator(this);
 		this.indicator.connectObject(
 			'open-dialog',
-			() => this.clipboardDialog?.open(),
+			() => this.clipboardDialog?.toggle(),
 			'clear-history',
 			(_: unknown, history: ClipboardHistory) => this.entryTracker?.clear(history),
 			this,

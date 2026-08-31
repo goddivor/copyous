@@ -256,6 +256,7 @@ export class ClipboardDialog extends St.Widget {
 	private _grab: Clutter.Grab | null = null;
 	private _open: boolean = false;
 	private _closing: boolean = false;
+	private _pendingToggle: boolean = false;
 	private _updateCursor: boolean = true;
 	private _nextCursor: [number, number] | null = null;
 	private _cursor: [number, number] | null = null;
@@ -415,8 +416,14 @@ export class ClipboardDialog extends St.Widget {
 	}
 
 	public toggle() {
-		if (!this.opened) this.open();
-		else this.close();
+		if (this._closing) {
+			// Mark that we want to reopen once the closing animation completes
+			this._pendingToggle = true;
+		} else if (!this.opened) {
+			this.open();
+		} else {
+			this.close();
+		}
 	}
 
 	public open() {
@@ -436,6 +443,7 @@ export class ClipboardDialog extends St.Widget {
 				? (grab as Clutter.Grab & { is_revoked(): boolean }).is_revoked()
 				: (grab as Clutter.Grab & { get_seat_state(): number }).get_seat_state() !== Clutter.GrabState.ALL;
 		if (grabFailed) {
+			this.ext.logger.warn('Failed to open clipboard dialog: modal grab failed');
 			Main.popModal(grab);
 			return;
 		}
@@ -536,6 +544,12 @@ export class ClipboardDialog extends St.Widget {
 				this.hide();
 				global.compositor.enable_unredirect();
 				this.ext.clipboardManager?.clearTargetIsTerminal();
+
+				// A click that arrived during the close animation was recorded rather than dropped.
+				if (this._pendingToggle) {
+					this._pendingToggle = false;
+					this.open();
+				}
 			},
 		});
 	}
