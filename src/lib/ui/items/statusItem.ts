@@ -109,8 +109,31 @@ export class StatusItem extends St.BoxLayout {
 	}
 
 	private updateSize() {
-		this.min_width = this.ext.settings.get_int('item-width');
-		this.min_height = this.ext.settings.get_int('item-height');
+		// The floor is read in the size vfuncs, so only a relayout is needed here.
+		this.queue_relayout();
+	}
+
+	/**
+	 * Clutter requires the natural size to be at least the minimum size, and aborts the whole shell
+	 * with `natural width: N < minimum M` when it is not. Setting `min_width` alone left the natural
+	 * width at the size of the message, so any item width wider than the text - which is the default -
+	 * killed gnome-shell as soon as this item was laid out, i.e. the moment a search matched nothing.
+	 *
+	 * Raising both values keeps the item at least as large as a clipboard item, while still letting it
+	 * grow past that for a long translation instead of ellipsizing the message.
+	 */
+	override vfunc_get_preferred_width(forHeight: number): [number, number] {
+		const [min, natural] = super.vfunc_get_preferred_width(forHeight);
+		const floor = this.ext.settings.get_int('item-width');
+
+		return [Math.max(min, floor), Math.max(natural, min, floor)];
+	}
+
+	override vfunc_get_preferred_height(forWidth: number): [number, number] {
+		const [min, natural] = super.vfunc_get_preferred_height(forWidth);
+		const floor = this.ext.settings.get_int('item-height');
+
+		return [Math.max(min, floor), Math.max(natural, min, floor)];
 	}
 
 	override destroy() {
