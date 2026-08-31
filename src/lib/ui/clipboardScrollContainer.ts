@@ -143,7 +143,10 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 	 * Finish batch loading and update visibility for all queued items.
 	 */
 	public finishBatch(): void {
-		this.updateVisible();
+		// A remembered search query has to be applied to the items that were added with per-item
+		// search skipped, otherwise the restored query would show entries it does not match.
+		if (this._lastQuery) this.search(this._lastQuery);
+		else this.updateVisible();
 	}
 
 	private setupItemHandlers(item: ClipboardItem): void {

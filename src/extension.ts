@@ -44,6 +44,7 @@ export default class CopyousExtension extends Extension {
 	private historyTimeoutId: number = -1;
 	private updateHistory: boolean = false;
 	private initEntryTrackerPromise: Promise<void> = Promise.resolve();
+	private loadEntriesId: number = -1;
 
 	public clipboardManager: ClipboardManager | undefined;
 
@@ -284,31 +285,34 @@ export default class CopyousExtension extends Extension {
 		this.clipboardDialog?.clearEntries();
 		const entries = await this.entryTracker.init();
 
-		// Load entries in batches via idle callbacks to avoid blocking the main loop.
-		// Batch size is tuned to keep frames responsive while minimizing callback overhead.
+		// Building one St actor per entry is what froze the session on login with a large history.
+		// Spread it over idle callbacks at low priority so the shell keeps drawing frames, and stop
+		// the previous run first: a re-init (or a lock/unlock cycle) would otherwise leave a second
+		// loop appending into the dialog.
+		this.stopLoadingEntries();
+
+		if (entries.length === 0) return;
+
 		const batchSize = 10;
 		let index = 0;
 
-		const loadBatch = () => {
+		this.loadEntriesId = GLib.idle_add(GLib.PRIORITY_LOW, () => {
 			const end = Math.min(index + batchSize, entries.length);
 			for (; index < end; index++) {
-				const entry = entries[index]!;
-				this.clipboardDialog?.addEntryBatch(entry);
+				this.clipboardDialog?.addEntryBatch(entries[index]!);
 			}
 
-			if (index < entries.length) {
-				GLib.idle_add(GLib.PRIORITY_LOW, loadBatch);
-				return GLib.SOURCE_REMOVE;
-			}
+			if (index < entries.length) return GLib.SOURCE_CONTINUE;
 
-			// Finish batch loading after all entries are queued
 			this.clipboardDialog?.finishBatchLoadEntries();
+			this.loadEntriesId = -1;
 			return GLib.SOURCE_REMOVE;
-		};
+		});
+	}
 
-		if (entries.length > 0) {
-			GLib.idle_add(GLib.PRIORITY_LOW, loadBatch);
-		}
+	private stopLoadingEntries() {
+		if (this.loadEntriesId >= 0) GLib.source_remove(this.loadEntriesId);
+		this.loadEntriesId = -1;
 	}
 
 	private async initHistoryTimeout() {
@@ -369,6 +373,7 @@ export default class CopyousExtension extends Extension {
 
 		// Database
 		const error = this.logger.error.bind(this.logger);
+		this.stopLoadingEntries();
 		this.entryTracker?.destroy().catch(error);
 		this.entryTracker = undefined;
 		this.initEntryTrackerPromise = Promise.resolve();

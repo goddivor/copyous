@@ -399,7 +399,16 @@ export class ClipboardDialog extends St.Widget {
 	}
 
 	override destroy() {
-		// Clean up modal grab and unredirect if not already closed
+		// A destroy while the dialog is open or still animating shut would otherwise leave the modal
+		// grab held and the unredirect counter unbalanced for the rest of the session: keyboard and
+		// pointer never return to the applications, and compositing stays forced on, which is what
+		// keeps a discrete GPU awake after the extension is disabled.
+		//
+		// The close animation's onComplete does the same cleanup, so drop the pending transition
+		// first rather than running it twice with a null grab.
+		this._dialog.remove_all_transitions();
+		this._closing = false;
+
 		if (this._grab) {
 			Main.popModal(this._grab);
 			this._grab = null;
