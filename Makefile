@@ -37,6 +37,7 @@ endif
 .PHONY: pot po check-pot check-po
 .PHONY: build install uninstall
 .PHONY: launch launch-profile launch-settings
+.PHONY: benchmark
 
 # Default target
 all: $(DIST_ZIP)
@@ -239,6 +240,10 @@ launch: install database
 	@$(if $(filter-out default,$(DEBUG_SCHEMA)), cat $(DEBUG_SCHEMA) | dconf load /org/gnome/shell/extensions/$(NAME)/debug/)
 # Run shell
 	dbus-run-session -- gnome-shell $(if $(HAS_DEVKIT),--devkit,--nested) --wayland
+
+# Benchmark the clipboard dialog open latency against a generated history fixture
+benchmark:
+	scripts/benchmark/run.sh $(BENCHMARK_ENTRIES)
 
 # Open settings and show logs and dconf watch output while settings are open
 launch-settings: install
