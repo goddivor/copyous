@@ -125,11 +125,16 @@ export class ClipboardIndicator extends PanelMenu.Button {
 	private configurePanelMenuClickGesture() {
 		if (VERSION < 50) return;
 
-		(
-			this as ClipboardIndicator & {
-				_clickGesture?: { set_required_button: (button: number) => void };
-			}
-		)._clickGesture?.set_required_button(Clutter.BUTTON_SECONDARY);
+		const self = this as ClipboardIndicator & {
+			_clickGesture?: { set_required_button: (button: number) => void };
+		};
+
+		if (!self._clickGesture) {
+			this.ext.logger.warn('ClickGesture not found: left click will not open the clipboard dialog');
+			return;
+		}
+
+		self._clickGesture.set_required_button(Clutter.BUTTON_SECONDARY);
 	}
 
 	get incognito() {
