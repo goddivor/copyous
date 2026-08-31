@@ -32,6 +32,8 @@ export class ThemeManager extends GObject.Object {
 	private readonly _themeContextChangedId: number | null;
 
 	private _stylesheet: Gio.File | null = null;
+	private _updatingTheme: boolean = false;
+	private _lastCustomCss: string | null = null;
 	private _colorScheme: CustomColorScheme = CustomColorScheme.Dark;
 
 	constructor(private ext: CopyousExtension) {
@@ -83,55 +85,107 @@ export class ThemeManager extends GObject.Object {
 		}
 	}
 
-	private sampleShellThemeColors(): Record<string, string> {
-		const colors: Record<string, string> = {};
+	/**
+	 * Reads a colour out of the live shell theme.
+	 *
+	 * The ancestors are built as real actors because the shell theme states most of its colours
+	 * through descendant selectors: a bare `popup-menu-item` on the stage matches none of them.
+	 */
+	private sampleColor(classPath: string[], getter: (node: St.ThemeNode) => Cogl.Color): string | null {
+		let root: St.Widget | null = null;
+		let leaf: St.Widget | null = null;
 
-		// Helper to get color from a widget's theme node
-		const sampleColorFromClass = (
-			className: string,
-			colorGetter: (node: St.ThemeNode) => Cogl.Color | null,
-		): string | null => {
-			const widget = new St.Widget({ style_class: className });
-			global.stage.add_child(widget);
-			widget.set_position(-10000, -10000); // Move off-screen
+		for (const styleClass of classPath) {
+			const widget = new St.Widget({ style_class: styleClass });
+			if (leaf) leaf.add_child(widget);
+			else root = widget;
+			leaf = widget;
+		}
 
-			try {
-				const themeNode = widget.get_theme_node();
-				const color = colorGetter(themeNode);
-				if (color) {
-					// Convert Clutter.Color to rgb(r,g,b) format
-					return `rgb(${color.red},${color.green},${color.blue})`;
-				}
-			} catch (e) {
-				this.ext.logger.debug(`Failed to sample color from ${className}: ${String(e)}`);
-			} finally {
-				global.stage.remove_child(widget);
-				widget.destroy();
-			}
+		if (!root || !leaf) return null;
+
+		// The actor has to be in the scene graph for the theme to resolve, but it must not be drawn.
+		root.visible = false;
+		global.stage.add_child(root);
+
+		try {
+			const color = getter(leaf.get_theme_node());
+
+			// A fully transparent result means the selector matched nothing worth copying.
+			if (color.alpha === 0) return null;
+
+			return `rgb(${color.red},${color.green},${color.blue})`;
+		} catch (e) {
+			this.ext.logger.debug(`Failed to sample color from ${classPath.join(' ')}: ${String(e)}`);
 			return null;
+		} finally {
+			global.stage.remove_child(root);
+			root.destroy();
+		}
+	}
+
+	private firstColor(candidates: [string[], (node: St.ThemeNode) => Cogl.Color][], fallback: string): string {
+		for (const [classPath, getter] of candidates) {
+			const color = this.sampleColor(classPath, getter);
+			if (color) return color;
+		}
+
+		return fallback;
+	}
+
+	private sampleShellThemeColors(): Record<string, string> {
+		const background = (node: St.ThemeNode) => node.get_background_color();
+		const foreground = (node: St.ThemeNode) => node.get_foreground_color();
+		const i = Math.min(this.colorScheme, 1);
+
+		return {
+			bg_color: this.firstColor(
+				[
+					[['popup-menu', 'popup-menu-content'], background],
+					[['panel'], background],
+				],
+				DefaultColors['custom-bg-color'][i] ?? DefaultColors['custom-bg-color'][0],
+			),
+			fg_color: this.firstColor(
+				[
+					[['popup-menu', 'popup-menu-content', 'popup-menu-item'], foreground],
+					[['popup-menu', 'popup-menu-content'], foreground],
+					[['panel'], foreground],
+				],
+				DefaultColors['custom-fg-color'][i] ?? DefaultColors['custom-fg-color'][0],
+			),
+			card_bg_color: this.firstColor(
+				[
+					[['message-list', 'message'], background],
+					[['popup-menu', 'popup-menu-content', 'popup-menu-item'], background],
+				],
+				DefaultColors['custom-card-bg-color'][i] ?? DefaultColors['custom-card-bg-color'][0],
+			),
+			search_bg_color: this.firstColor(
+				[
+					[['search-entry'], background],
+					[['message-list', 'message'], background],
+				],
+				DefaultColors['custom-search-bg-color'][i] ?? DefaultColors['custom-search-bg-color'][0],
+			),
 		};
-
-		// Sample colors from different widget classes
-		colors['bg_color'] =
-			sampleColorFromClass('search-entry', (n) => n.get_background_color()) ||
-			sampleColorFromClass('panel', (n) => n.get_background_color()) ||
-			DefaultColors['custom-bg-color'][0];
-		colors['fg_color'] =
-			sampleColorFromClass('search-entry', (n) => n.get_foreground_color()) ||
-			sampleColorFromClass('panel', (n) => n.get_foreground_color()) ||
-			DefaultColors['custom-fg-color'][0];
-		colors['card_bg_color'] =
-			sampleColorFromClass('popup-menu-item', (n) => n.get_background_color()) ||
-			sampleColorFromClass('popup-menu-content', (n) => n.get_background_color()) ||
-			DefaultColors['custom-card-bg-color'][0];
-		colors['search_bg_color'] =
-			sampleColorFromClass('search-entry', (n) => n.get_background_color()) ||
-			DefaultColors['custom-search-bg-color'][0];
-
-		return colors;
 	}
 
 	private async updateTheme() {
+		// St.Theme.load_stylesheet emits custom-stylesheets-changed, which St.ThemeContext relays as
+		// its own changed signal - the one this class listens to. Without this guard the listener
+		// would call straight back into here and spin forever.
+		if (this._updatingTheme) return;
+
+		this._updatingTheme = true;
+		try {
+			await this.doUpdateTheme();
+		} finally {
+			this._updatingTheme = false;
+		}
+	}
+
+	private async doUpdateTheme() {
 		let theme = this._themeSettings.get_enum('theme');
 
 		this.colorScheme = (() => {
@@ -184,6 +238,10 @@ export class ThemeManager extends GObject.Object {
 					return s.replaceAll(`$${variable}`, color);
 				}, text);
 
+				// Nothing to do when the generated stylesheet is unchanged. This matters for the
+				// system theme, whose colours are resampled on every shell theme change.
+				if (css === this._lastCustomCss && this._stylesheet) return;
+
 				// Save theme
 				const path = getDataPath(this.ext);
 				const stylesheet = path.get_child('custom-theme.css');
@@ -201,6 +259,7 @@ export class ThemeManager extends GObject.Object {
 				if (this._stylesheet) this.theme.unload_stylesheet(this._stylesheet);
 				this.theme.load_stylesheet(stylesheet);
 				this._stylesheet = stylesheet;
+				this._lastCustomCss = css;
 				return;
 			} catch (err) {
 				theme = Theme.Default;
@@ -209,6 +268,7 @@ export class ThemeManager extends GObject.Object {
 		}
 
 		// GNOME Theme
+		this._lastCustomCss = null;
 		const themeName = (['default', 'yaru'] as const)[theme];
 		const uri = `resource:///org/gnome/shell/extensions/copyous/css/stylesheet-${themeName}-${colorScheme}.css`;
 		const stylesheet = Gio.File.new_for_uri(uri);
