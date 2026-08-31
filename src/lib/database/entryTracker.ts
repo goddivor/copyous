@@ -14,6 +14,7 @@ import { MemoryDatabase } from './memory.js';
 export class ClipboardEntryTracker {
 	private _database: Database | undefined;
 	private _entries: Map<number, ClipboardEntry> = new Map();
+	private _activeConfig: string | undefined;
 
 	constructor(private ext: CopyousExtension) {}
 
@@ -80,6 +81,8 @@ export class ClipboardEntryTracker {
 		// Fallback to in-memory
 		entries ??= await this.initMemory();
 
+		this._activeConfig = this.currentConfig();
+
 		// Track all entries
 		this.track(...entries);
 
@@ -87,6 +90,21 @@ export class ClipboardEntryTracker {
 		await this.deleteOldest();
 
 		return entries;
+	}
+
+	/**
+	 * Whether the loaded database already matches the current settings.
+	 *
+	 * `init()` writes `database-backend` itself when it resolves the default backend, which fires
+	 * `changed::database-backend` right back at the extension. Reloading there would read the whole
+	 * history a second time, so the settings handler uses this to skip the redundant work.
+	 */
+	public matchesSettings(): boolean {
+		return this._database !== undefined && this._activeConfig === this.currentConfig();
+	}
+
+	private currentConfig(): string {
+		return `${this.ext.settings.get_enum('database-backend')}:${this.getFile().get_path() ?? ''}`;
 	}
 
 	private getFile(): Gio.File {
@@ -182,6 +200,8 @@ export class ClipboardEntryTracker {
 	}
 
 	public async destroy() {
+		this._activeConfig = undefined;
+
 		await this._database?.close();
 		this._database = undefined;
 	}

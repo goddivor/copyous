@@ -118,21 +118,46 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 	}
 
 	public addItem(item: ClipboardItem): void {
+		// An entry must never be shown twice. A duplicate means the history was loaded again before
+		// the previous items were cleared, which is what made pinned and tagged entries multiply.
+		if (this.findItem(item.entry.id)) return;
+
 		this.insertOrMoveItem(item);
 
-		// Move item when datetime changes
-		item.entry.connect('notify::datetime', () => this.insertOrMoveItem(item, false));
+		// The handlers are owned by the item so they are dropped together with it, both when the item
+		// is destroyed and when it is removed from the container.
+		item.entry.connectObject(
+			// Move item when datetime changes
+			'notify::datetime',
+			() => this.insertOrMoveItem(item, false),
 
-		// Delete item when deleted
-		item.entry.connect('delete', () => this.removeItem(item));
+			// Delete item when deleted
+			'delete',
+			() => this.removeItem(item),
 
-		// Update search only when properties used by search can change.
-		item.entry.connect('notify::content', () => this.updateSearch(item));
-		item.entry.connect('notify::pinned', () => this.updateSearch(item));
-		item.entry.connect('notify::tag', () => this.updateSearch(item));
-		item.entry.connect('notify::type', () => this.updateSearch(item));
-		item.entry.connect('notify::metadata', () => this.updateSearch(item));
-		item.entry.connect('notify::title', () => this.updateSearch(item));
+			// Update search only when properties used by search can change.
+			'notify::content',
+			() => this.updateSearch(item),
+			'notify::pinned',
+			() => this.updateSearch(item),
+			'notify::tag',
+			() => this.updateSearch(item),
+			'notify::type',
+			() => this.updateSearch(item),
+			'notify::metadata',
+			() => this.updateSearch(item),
+			'notify::title',
+			() => this.updateSearch(item),
+			item,
+		);
+	}
+
+	private findItem(id: number): ClipboardItem | null {
+		for (const child of this.get_children()) {
+			if (child instanceof ClipboardItem && child.entry.id === id) return child;
+		}
+
+		return null;
 	}
 
 	private insertOrMoveItem(item: ClipboardItem, search: boolean = true): void {
@@ -165,7 +190,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 		for (const child of this.get_children()) {
 			if (child instanceof ClipboardItem) {
 				focus ||= child.has_key_focus();
-				child.disconnectObject(this);
+				child.entry.disconnectObject(child);
 				this.remove_child(child);
 			}
 		}
@@ -186,7 +211,7 @@ export class ClipboardScrollContainer extends St.BoxLayout {
 			newFocus = get_next_visible_sibling(child) ?? get_previous_visible_sibling(child);
 		}
 
-		child.disconnectObject(this);
+		child.entry.disconnectObject(child);
 		this.remove_child(child);
 		this.updateVisible();
 

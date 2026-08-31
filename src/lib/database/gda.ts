@@ -407,8 +407,11 @@ export class GdaDatabase implements Database {
 						where,
 					);
 					if (!whereId) {
+						// Without the imported expression the statement would delete every row, pinned
+						// and tagged entries included. Report nothing as deleted so the dialog keeps
+						// showing the entries that are still in the database.
 						this.ext.logger.error('Failed to import WHERE expression for DELETE statement');
-						return deleted;
+						return [];
 					}
 					deleteBuilder.set_where(whereId);
 				}

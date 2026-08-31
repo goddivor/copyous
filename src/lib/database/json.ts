@@ -57,6 +57,14 @@ export class JsonDatabase extends MemoryDatabase {
 				throw new Error('Invalid JSON database format: missing or invalid entries array');
 			}
 
+			// Refuse a file written by a newer version rather than dropping the fields it does not
+			// know about on the next save.
+			if (typeof document.version === 'number' && document.version > DATABASE_VERSION) {
+				throw new Error(
+					`Database version ${document.version} is newer than supported version ${DATABASE_VERSION}`,
+				);
+			}
+
 			for (const entry of document.entries) {
 				// Validate required fields
 				if (!entry.type || !entry.content || entry.pinned === undefined || !entry.datetime) {
@@ -84,7 +92,8 @@ export class JsonDatabase extends MemoryDatabase {
 				this._keys.set(clipboardEntry.id, key);
 			}
 		} catch (error) {
-			// Log error but continue with empty database rather than crashing
+			// Fail the whole load so the caller can fall back instead of silently starting from an
+			// empty history and overwriting the file the user still has on disk.
 			throw new Error(`Failed to load JSON database: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}

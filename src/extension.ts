@@ -43,7 +43,7 @@ export default class CopyousExtension extends Extension {
 	private entryTracker: ClipboardEntryTracker | undefined;
 	private historyTimeoutId: number = -1;
 	private updateHistory: boolean = false;
-	private initEntryTrackerPromise: Promise<void> | undefined;
+	private initEntryTrackerPromise: Promise<void> = Promise.resolve();
 
 	public clipboardManager: ClipboardManager | undefined;
 
@@ -133,9 +133,9 @@ export default class CopyousExtension extends Extension {
 
 		this.settings.connectObject(
 			'changed::database-location',
-			this.initEntryTracker.bind(this),
+			this.reinitEntryTracker.bind(this),
 			'changed::database-backend',
-			this.initEntryTracker.bind(this),
+			this.reinitEntryTracker.bind(this),
 			'changed::history-time',
 			this.initHistoryTimeout.bind(this),
 			this,
@@ -260,18 +260,22 @@ export default class CopyousExtension extends Extension {
 		this.hljsCallbacks.push(fn);
 	}
 
-	private async initEntryTracker() {
-		if (!this.entryTracker) return;
+	private reinitEntryTracker() {
+		// `init()` writes `database-backend` when it resolves the default backend, which fires this
+		// handler right back. Reloading then would read the whole history a second time.
+		if (this.entryTracker?.matchesSettings()) return;
 
-		// Serialize initialization: wait for any pending init to complete before starting a new one
-		if (this.initEntryTrackerPromise) {
-			await this.initEntryTrackerPromise;
-		}
+		this.initEntryTracker().catch(this.logger.error.bind(this.logger));
+	}
 
-		// Create new initialization promise
-		this.initEntryTrackerPromise = this.doInitEntryTracker();
-		await this.initEntryTrackerPromise;
-		this.initEntryTrackerPromise = undefined;
+	private initEntryTracker(): Promise<void> {
+		// Chain onto the pending initialization instead of racing it. Two concurrent runs would each
+		// clear the dialog and then append the full history, which is what multiplied the entries.
+		this.initEntryTrackerPromise = this.initEntryTrackerPromise
+			.catch(() => undefined)
+			.then(() => this.doInitEntryTracker());
+
+		return this.initEntryTrackerPromise;
 	}
 
 	private async doInitEntryTracker() {
@@ -342,12 +346,9 @@ export default class CopyousExtension extends Extension {
 
 		// Database
 		const error = this.logger.error.bind(this.logger);
-		// Ensure database is properly closed and flushed
-		try {
-			this.entryTracker?.destroy().catch(error);
-		} finally {
-			this.entryTracker = undefined;
-		}
+		this.entryTracker?.destroy().catch(error);
+		this.entryTracker = undefined;
+		this.initEntryTrackerPromise = Promise.resolve();
 
 		if (this.historyTimeoutId >= 0) GLib.source_remove(this.historyTimeoutId);
 		this.historyTimeoutId = -1;
