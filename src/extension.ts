@@ -124,6 +124,10 @@ export default class CopyousExtension extends Extension {
 			() => this.clipboardDialog?.dialogShortcut(),
 			'toggle-incognito-mode',
 			() => this.indicator?.toggleIncognito(),
+			'select-next-item',
+			() => this.selectNextItem(),
+			'select-previous-item',
+			() => this.selectPreviousItem(),
 			this,
 		);
 
@@ -333,6 +337,18 @@ export default class CopyousExtension extends Extension {
 
 			return GLib.SOURCE_CONTINUE;
 		});
+	}
+
+	private selectNextItem() {
+		// Select next item from clipboard history
+		// TODO: Implement item cycling logic with history tracking
+		// This will cycle through the clipboard history and update the clipboard with the next item
+	}
+
+	private selectPreviousItem() {
+		// Select previous item from clipboard history
+		// TODO: Implement item cycling logic with history tracking
+		// This will cycle through the clipboard history and update the clipboard with the previous item
 	}
 
 	override disable() {
